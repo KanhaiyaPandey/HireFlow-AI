@@ -40,7 +40,8 @@ class UserManagementIT extends IntegrationTest {
         invite(tenant.hrAdmin(), email, Role.RECRUITER)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.role").value("RECRUITER"))
-                .andExpect(jsonPath("$.invitationPending").value(true));
+                .andExpect(jsonPath("$.invitationPending").value(true))
+                .andExpect(jsonPath("$.createdAt").isNotEmpty());
 
         // Until the invitation is accepted the account has no password, so login fails.
         login(email, NEW_PASSWORD).andExpect(status().isUnauthorized());

@@ -132,7 +132,7 @@ public class UserAccountService {
         if (userRepository.existsByEmail(normalised)) {
             throw new ConflictException("An account with this email already exists");
         }
-        User user = userRepository.save(User.create(name.trim(), normalised, null, role, companyId));
+        User user = userRepository.saveAndFlush(User.create(name.trim(), normalised, null, role, companyId));
         sendInvite(user);
         return user;
     }

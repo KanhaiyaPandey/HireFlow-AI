@@ -27,7 +27,7 @@ How to run HireFlow AI locally, how it is configured, and how it is built, teste
 |---|---|---|---|---|---|
 | **Local** | Vite dev server `:5173` | `./mvnw spring-boot:run` `:8080` | Docker `pgvector/pgvector:pg17` | Local directory | Gemini API key (free tier, made-up resumes only) |
 | **CI** | `npm run build` | `./mvnw verify` | Testcontainers | Temp directory | Always mocked; no key |
-| **Production** | Vercel | Docker container on AWS EC2 behind Caddy | Managed PostgreSQL with pgvector | S3 (private bucket) | Gemini API key with billing enabled |
+| **Production** | Vercel | Docker container on AWS EC2 behind Caddy | Managed PostgreSQL with pgvector | Cloudinary | Gemini API key with billing enabled |
 
 Spring profiles: `local`, `test`, `prod`, plus an optional `demo` profile that seeds demo data.
 
@@ -145,9 +145,11 @@ hireflow:
 | `GEMINI_CHAT_MODEL` | ✓ | current stable Gemini Flash model ID | Take the ID from Google's Gemini API model list. Changing it needs no code change |
 | `GEMINI_EMBEDDING_MODEL` | | `gemini-embedding-001` | Changing it needs a new migration and a full re-index |
 | `AI_DAILY_QUOTA_PER_COMPANY` | | `200` | Screenings, searches and question generations per company per day |
-| `STORAGE_TYPE` | ✓ | `s3` | `local` or `s3` |
+| `STORAGE_TYPE` | ✓ | `cloudinary` | `local` or `cloudinary` |
 | `STORAGE_LOCAL_DIR` | | `./data/uploads` | Local only |
-| `STORAGE_S3_BUCKET`, `AWS_REGION` | ✓ if S3 | `hireflow-uploads`, `ap-south-1` | Credentials come from the EC2 instance role, **not** from access keys |
+| `CLOUDINARY_URL` | ✓ if Cloudinary | `cloudinary://<api_key>:<api_secret>@<cloud_name>` | Copy it from the Cloudinary console. Contains the API secret: keep it server-side only, never in a `VITE_` variable |
+| `CLOUDINARY_FOLDER` | | `hireflow-prod` | Prefix for every stored file, so development and production uploads stay apart in one account |
+| `STORAGE_LOCAL_PUBLIC_URL` | | `http://localhost:8080/media` | Local storage only: the base URL for public images, which the API serves at `/media/**` |
 | `MAIL_*` | | | Optional; without it, invite and reset links are logged |
 | `DEMO_PASSWORD` | if `demo` | | Shared password for seeded demo accounts |
 
@@ -238,7 +240,7 @@ flowchart LR
     end
 
     B -->|"TLS"| P[(Managed PostgreSQL<br/>+ pgvector)]
-    B -->|"instance role"| S[(S3 bucket<br/>private)]
+    B -->|"API key"| S[(Cloudinary<br/>images public, resumes signed)]
     B --> L[Gemini API<br/>chat + embeddings]
     G[GitHub Actions] -->|"push image"| R[(GHCR)]
     G -->|"SSH: pull + up"| EC2
@@ -344,7 +346,7 @@ Runtime secrets live only on the server (or in AWS SSM Parameter Store), never i
 
 1. **Choose the open items:** database provider, file storage, domain ([architecture.md §13](architecture.md#13-open-decisions)). Create a **separate** Gemini API key for production with billing enabled; keep the development key on the free tier.
 2. **Database:** create the instance, the `hireflow` database and the `hireflow_app` user; enable SSL; restrict network access; enable backups.
-3. **S3:** create a private bucket with "block all public access" on. Create an IAM role with `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on that bucket only, and attach it to the EC2 instance.
+3. **Cloudinary:** create a separate production environment (or account) so its API secret differs from development. Check the security settings for PDF delivery ([architecture.md §10](architecture.md#10-file-storage)) and put `CLOUDINARY_URL` in the server's `.env`.
 4. **EC2:** launch Ubuntu LTS, attach an Elastic IP, configure security groups (§6), install Docker and the compose plugin, and create `/opt/hireflow` with `docker-compose.prod.yml`, `Caddyfile` and `.env`.
 5. **DNS:** `api.<your-domain>` → Elastic IP (A record); `app.<your-domain>` → Vercel (CNAME as Vercel instructs).
 6. **GHCR:** log the EC2 Docker client in to `ghcr.io` with a read-only token, or make the package public.
@@ -398,7 +400,7 @@ A public demo URL with working AI features can run up a bill if it's abused.
 - [ ] `SPRING_PROFILES_ACTIVE=prod`; no secret has a default value in `application-prod.yml`.
 - [ ] `JWT_SECRET` is random, at least 256 bits, and used only in production.
 - [ ] Database: SSL required, not publicly reachable, app user is not the master user, backups enabled and a restore tested.
-- [ ] S3 bucket is private; the instance role is limited to that bucket.
+- [ ] Resumes are stored as `authenticated` in Cloudinary: opening a resume's plain URL without a signature fails. `CLOUDINARY_URL` exists only in the server's `.env`.
 - [ ] Port 8080 is closed; SSH is limited to your IP with key-only authentication.
 - [ ] HTTPS works on both domains; HTTP redirects to HTTPS.
 - [ ] CORS allows only the production frontend origin.

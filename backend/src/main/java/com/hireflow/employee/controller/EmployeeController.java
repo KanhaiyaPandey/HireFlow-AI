@@ -16,7 +16,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -72,6 +75,19 @@ public class EmployeeController {
     @Operation(summary = "Update the profile fields you may change yourself")
     public EmployeeResponse updateMe(@Valid @RequestBody UpdateMyProfileRequest request) {
         return employeeService.updateMe(request);
+    }
+
+    @PutMapping(value = "/me/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize(ANY_COMPANY_USER)
+    @Operation(summary = "Upload or replace your profile picture (PNG, JPEG or WebP, max 1 MB; file part: file)")
+    public EmployeeResponse uploadMyPhoto(@RequestPart("file") MultipartFile file) {
+        return employeeService.uploadMyPhoto(file);
+    }
+
+    @DeleteMapping("/me/photo")
+    @PreAuthorize(ANY_COMPANY_USER)
+    public EmployeeResponse removeMyPhoto() {
+        return employeeService.removeMyPhoto();
     }
 
     @GetMapping("/{id}")

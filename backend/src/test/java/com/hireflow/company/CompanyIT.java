@@ -69,7 +69,7 @@ class CompanyIT extends IntegrationTest {
             getCompany(account, other.companyId()).andExpect(status().isNotFound());
         }
         getCompany(fixtures.superAdmin(), other.companyId()).andExpect(status().isOk());
-        getCompany(fixtures.candidate(), mine.companyId()).andExpect(status().isForbidden());
+        getCompany(fixtures.candidate().account(), mine.companyId()).andExpect(status().isForbidden());
     }
 
     @Test

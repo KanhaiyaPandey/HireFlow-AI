@@ -20,6 +20,11 @@ hireflow:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
   frontend:
     base-url: ${FRONTEND_BASE_URL}
+  storage:
+    type: cloudinary
+    cloudinary:
+      url: ${CLOUDINARY_URL}
+      folder: ${CLOUDINARY_FOLDER:hireflow-prod}
   jwt:
     secret: ${JWT_SECRET}
   refresh-cookie:

@@ -72,6 +72,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_AUTH_POSTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/job-board", "/api/v1/job-board/**").permitAll()
+                        // Public images when using local storage (Cloudinary serves them itself in production).
+                        .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
                 .build();

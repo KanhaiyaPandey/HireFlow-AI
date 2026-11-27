@@ -8,12 +8,15 @@ HireFlow AI is a multi-tenant HRMS and applicant tracking system (ATS) with AI f
 
 It is a portfolio project for a Java Full Stack role. The author must be able to explain every line in a technical interview, so prefer clear, conventional Spring code over clever abstractions, and keep the scope to what the 18-day plan needs.
 
-**Status:** Days 1–4 are done.
+**Status:** Days 1–6 are done.
 - **Days 1–2:** backend skeleton, Problem Details error handling, `PageResponse`, and the full V1 Flyway schema.
 - **Day 3, authentication:** candidate and company sign-up, login, JWT access tokens, rotating refresh-token cookie with reuse detection, logout, `/auth/me`, and the super admin seeder.
 - **Day 4, HR core:** company profiles and activation; departments with managers; employee records, which always come with an invited login; HR user management (invite, resend, enable/disable); password reset.
-- **Entities so far:** `Candidate` is still minimal (filled in on Day 5); the other entities arrive with their modules.
-- **Not started:** rate limiting, real email delivery (links are logged for now), logo and profile-picture uploads (Day 6), and the frontend (Day 7).
+- **Day 5, recruitment:** job lifecycle and the public job board; candidate profiles and the company's applicant directory; applying, the status pipeline with history, and recruiter notes.
+- **Day 6, files:** the `FileStorage` abstraction (local disk and Cloudinary, both verified against the real account); resume upload with PDFBox text extraction; signed downloads; recruiter-sourced applications; company logos and employee photos.
+- **Next, Day 7:** the React frontend scaffold, with login and registration.
+- **Not started:** rate limiting, real email delivery (links are logged for now), and the frontend (Day 7).
+- **Media:** stored in Cloudinary. Images are public; resumes are `authenticated` and served only through signed URLs (docs/architecture.md §10).
 
 Design docs — read the relevant one before changing that area:
 
@@ -72,6 +75,8 @@ cd frontend && npm run lint && npm run typecheck && npm test
 - Across modules, entities hold another module's id as a plain `UUID` field, never a `@ManyToOne`. Within a module, JPA relationships are fine.
 - Who is calling, and which company they act for, comes only from `CurrentUser` (`id()`, `role()`, `requireCompanyId()`).
 - Inject `java.time.Clock` instead of calling `Instant.now()`, so tests can fix the time.
+- `@CreationTimestamp` and `@UpdateTimestamp` are filled in only when Hibernate runs the INSERT or UPDATE. Use `saveAndFlush`, or `flush()` before mapping, when a response is built straight from an entity you just created or changed. Otherwise `createdAt` comes back `null` and `updatedAt` stale.
+- Files go through `storage.Uploads.validate` and `FileStorage`, never the Cloudinary SDK directly (docs/skills.md §8). Tests must never use real Cloudinary; `IntegrationTest` forces local storage.
 - Entities use `@Getter`/`@Setter` only — no `@Data`, no Lombok `equals`/`hashCode`/`toString` on entities. UUID primary keys. Timestamps are `Instant` mapped to `timestamptz`.
 - Constructor injection only (`@RequiredArgsConstructor` on `final` fields). No field `@Autowired`.
 - Errors: throw `NotFoundException`, `ConflictException`, `BusinessRuleException` or similar from `common.exception`; `GlobalExceptionHandler` turns them into RFC 9457 `ProblemDetail` responses. No ad-hoc error maps.

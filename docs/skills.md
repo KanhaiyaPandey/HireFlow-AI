@@ -248,14 +248,13 @@ The retry and the `FAILED` handling live in the calling service, so they can be 
 
 ## 8. Handle a file upload
 
-- [ ] Endpoint accepts `MultipartFile`; `spring.servlet.multipart.max-file-size` is set globally, and the service checks the per-type limit (5 MB for resumes, 1 MB for images).
-- [ ] Check the **magic bytes**, not just the `Content-Type` header: `%PDF-` for PDFs, PNG/JPEG/WebP signatures for images.
-- [ ] Generate the storage key (`resumes/{uuid}.pdf`); never use the client's file name as a path. Store the sanitised original name as metadata only.
-- [ ] Compute a SHA-256 `content_hash` to detect duplicates.
-- [ ] Save through `FileStorage`, never `java.io.File` directly in business code.
-- [ ] For resumes: extract text with PDFBox in the same request (it's fast), cap its length and set `text_status` (`EXTRACTED`, `EMPTY` or `FAILED`).
-- [ ] Downloads go through an endpoint that checks permissions. Never expose bucket URLs.
-- [ ] Tests: wrong type, a renamed non-PDF, an oversized file, an empty PDF, and the happy path.
+- [ ] The endpoint declares `consumes = MULTIPART_FORM_DATA_VALUE` and takes `@RequestPart("file") MultipartFile`. Extra form fields go in a `@Valid @ModelAttribute` record (see `SourcedCandidateForm`).
+- [ ] Call `Uploads.validate(file, allowedTypes, maxSize)` first. It reads at most `maxSize` + 1 bytes, detects the real type from magic bytes (`FileType`), and returns a cleaned display name. Never trust the file name or the client's `Content-Type`.
+- [ ] Generate the key on the server: a fresh UUID for documents, or a fixed per-owner key for replaceable images. Store only the sanitised original name, as metadata.
+- [ ] Go through `FileStorage` (`storePublicImage` / `storePrivateFile`), never `java.io.File` or the Cloudinary SDK in business code.
+- [ ] Private files: register cleanup if the transaction rolls back, and delete the file after commit when the row is removed (see `ResumeService`).
+- [ ] Downloads go through an endpoint that checks permissions, then `switch` on `PrivateFileAccess` (`Redirect` or `Content`). Never store or return a raw Cloudinary URL for a private file.
+- [ ] Tests build files in code with `TestFiles` (PDFs via PDFBox, PNGs via ImageIO). Cover the wrong type, a renamed non-PDF, an oversized file, an empty PDF, permissions and the happy path. Integration tests always use local storage; `CloudinaryFileStorageSmokeTest` is the only test that talks to Cloudinary.
 
 ---
 

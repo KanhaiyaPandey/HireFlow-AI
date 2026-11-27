@@ -13,8 +13,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -56,6 +60,19 @@ public class CompanyController {
     @Operation(summary = "Update your company's profile (HR admin)")
     public CompanyResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateCompanyRequest request) {
         return companyService.update(id, request);
+    }
+
+    @PutMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    @Operation(summary = "Upload or replace your company's logo (PNG, JPEG or WebP, max 1 MB; file part: file)")
+    public CompanyResponse uploadLogo(@PathVariable UUID id, @RequestPart("file") MultipartFile file) {
+        return companyService.uploadLogo(id, file);
+    }
+
+    @DeleteMapping("/{id}/logo")
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    public CompanyResponse removeLogo(@PathVariable UUID id) {
+        return companyService.removeLogo(id);
     }
 
     @PatchMapping("/{id}/status")

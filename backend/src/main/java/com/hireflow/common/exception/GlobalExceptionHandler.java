@@ -18,6 +18,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -60,6 +61,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail handlePropertyReference(PropertyReferenceException ex) {
         return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request",
                 "Unknown field '%s'.".formatted(ex.getPropertyName()));
+    }
+
+    @ExceptionHandler(FileTooLargeException.class)
+    ProblemDetail handleFileTooLarge(FileTooLargeException ex) {
+        return problem(HttpStatus.PAYLOAD_TOO_LARGE, "file-too-large", "File too large", ex.getMessage());
+    }
+
+    /** E.g. a JSON body sent to an upload endpoint. Without this it would fall into the 500 handler. */
+    @ExceptionHandler(MultipartException.class)
+    ProblemDetail handleMultipart(MultipartException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request",
+                "Send the file as multipart/form-data.");
+    }
+
+    @ExceptionHandler(ExternalServiceException.class)
+    ProblemDetail handleExternalService(ExternalServiceException ex) {
+        log.error("{} failed: {}", ex.getService(), ex.getMessage(), ex);
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "service-unavailable", "Service unavailable",
+                "A service this request depends on is unavailable. Please try again shortly.");
     }
 
     @ExceptionHandler(UnauthorizedException.class)

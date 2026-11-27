@@ -24,7 +24,11 @@ import com.hireflow.employee.event.EmployeeDeactivatedEvent;
 import com.hireflow.employee.repository.EmployeeRepository;
 import com.hireflow.security.CurrentUser;
 import com.hireflow.security.Role;
+import com.hireflow.storage.FileStorage;
+import com.hireflow.storage.FileType;
+import com.hireflow.storage.Uploads;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -53,6 +57,7 @@ public class EmployeeService {
     private final UserAccountService userAccountService;
     private final ApplicationEventPublisher events;
     private final CurrentUser currentUser;
+    private final FileStorage fileStorage;
 
     @Transactional
     public EmployeeResponse create(CreateEmployeeRequest request) {
@@ -143,7 +148,32 @@ public class EmployeeService {
         return response(companyId, employee.getId());
     }
 
+    /** Profile pictures use a fixed key per employee, so a new upload replaces the old file. */
+    @Transactional
+    public EmployeeResponse uploadMyPhoto(MultipartFile file) {
+        UUID companyId = currentUser.requireCompanyId();
+        Employee employee = loadMine(companyId);
+        Uploads.ValidatedFile image = Uploads.validate(file, FileType.IMAGES, Uploads.MAX_IMAGE);
+        employee.setProfilePictureUrl(fileStorage.storePublicImage(photoKey(employee), image.bytes(), image.type()));
+        return response(companyId, employee.getId());
+    }
+
+    @Transactional
+    public EmployeeResponse removeMyPhoto() {
+        UUID companyId = currentUser.requireCompanyId();
+        Employee employee = loadMine(companyId);
+        if (employee.getProfilePictureUrl() != null) {
+            fileStorage.deletePublicImage(photoKey(employee));
+            employee.setProfilePictureUrl(null);
+        }
+        return response(companyId, employee.getId());
+    }
+
     // ------------------------------------------------------------ helpers
+
+    private static String photoKey(Employee employee) {
+        return "employees/" + employee.getId() + "/photo";
+    }
 
     private void deactivate(UUID companyId, Employee employee) {
         if (employee.getUserId().equals(currentUser.id())) {

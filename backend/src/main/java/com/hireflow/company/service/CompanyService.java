@@ -20,7 +20,11 @@ import com.hireflow.company.mapper.CompanyMapper;
 import com.hireflow.company.repository.CompanyRepository;
 import com.hireflow.security.CurrentUser;
 import com.hireflow.security.Role;
+import com.hireflow.storage.FileStorage;
+import com.hireflow.storage.FileType;
+import com.hireflow.storage.Uploads;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -43,6 +47,7 @@ public class CompanyService {
     private final CompanyRepository companyRepository;
     private final CompanyMapper companyMapper;
     private final CurrentUser currentUser;
+    private final FileStorage fileStorage;
 
     /** Creates an ACTIVE company and returns its id. Joins the caller's transaction (sign-up). */
     @Transactional
@@ -75,7 +80,7 @@ public class CompanyService {
                 blankToNull(request.industry()),
                 blankToNull(request.description()),
                 blankToNull(request.address()));
-        return companyMapper.toResponse(company);
+        return flushed(company);
     }
 
     /**
@@ -86,7 +91,39 @@ public class CompanyService {
     public CompanyResponse changeStatus(UUID id, ChangeCompanyStatusRequest request) {
         Company company = loadVisible(id);
         company.setStatus(request.status());
+        return flushed(company);
+    }
+
+    /**
+     * Replaces the logo (HR admin, enforced in the controller). The image is stored under a fixed key
+     * per company, so a new upload overwrites the old file instead of leaving it behind.
+     */
+    @Transactional
+    public CompanyResponse uploadLogo(UUID id, MultipartFile file) {
+        Company company = loadVisible(id);
+        Uploads.ValidatedFile image = Uploads.validate(file, FileType.IMAGES, Uploads.MAX_IMAGE);
+        company.setLogoUrl(fileStorage.storePublicImage(logoKey(id), image.bytes(), image.type()));
+        return flushed(company);
+    }
+
+    @Transactional
+    public CompanyResponse removeLogo(UUID id) {
+        Company company = loadVisible(id);
+        if (company.getLogoUrl() != null) {
+            fileStorage.deletePublicImage(logoKey(id));
+            company.setLogoUrl(null);
+        }
+        return flushed(company);
+    }
+
+    /** Writes pending changes first: @UpdateTimestamp is only set when the UPDATE runs. */
+    private CompanyResponse flushed(Company company) {
+        companyRepository.flush();
         return companyMapper.toResponse(company);
+    }
+
+    private static String logoKey(UUID companyId) {
+        return "companies/" + companyId + "/logo";
     }
 
     private Company loadVisible(UUID id) {
