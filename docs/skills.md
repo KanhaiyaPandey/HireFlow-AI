@@ -316,30 +316,31 @@ Every integration test class shares one Spring context and one PostgreSQL contai
 
 ## 10. Add a frontend page
 
-1. Create `src/features/<module>/pages/<Name>Page.tsx`.
-2. Add API functions and TanStack Query hooks in `src/features/<module>/api/`: `useJobs(params)`, `useJob(id)`, `useCreateJob()`. Use stable query keys, such as `['jobs', params]` and `['jobs', id]`, and invalidate them after mutations.
-3. Define response types next to the hooks, matching the backend DTOs.
-4. Register the route in the router, wrapped in a role guard (UX only; the backend still enforces access).
-5. Handle all four states: **loading** (skeleton), **empty** (message plus a primary action), **error** (Problem Details `title`/`detail` plus a retry), and **data**.
-6. Tables use the shadcn data table (TanStack Table), with server-side pagination and sorting through query params kept in the URL.
-7. Use the shared layout (sidebar + header) and shadcn components; no one-off styling for things a component already covers.
-8. For AI results, show the score breakdown and evidence, label AI-generated text as such, and leave every decision as a human action.
-
----
+1. **Read [DESIGN.md](../DESIGN.md)** and look through `frontend/src/components`. Reuse `PageHeader`, `DataTable`, `StatCard`, `StatusBadge`, `SearchInput`, `FilterDropdown`, `EmptyState`/`ErrorState` and `ConfirmDialog`; never restyle them per page.
+2. Put the page in `src/features/<module>/pages/<Name>Page.tsx` as a **default export**, and register it in `src/app/router.tsx` with `lazy: page(() => import(...))` under the right `RequireRole` branch.
+3. Mirror the backend DTOs in `features/<module>/types.ts`, and add Query hooks in `features/<module>/api.ts`.
+   - Query keys start with the resource: `['jobs', params]`, `['jobs', id]`.
+   - Mutations invalidate the keys they affect.
+   - Lists pass `pageParams(page, size, sort)` and use `placeholderData: keepPreviousData`.
+4. Flip the item to `ready: true` in `src/app/navigation.ts`.
+5. **States:** loading is a skeleton (`DataTable` does it for tables). Empty uses `EmptyState`, which teaches what appears there and how. Errors use `ErrorState` with retry and `errorMessage(error)`. Filtered-empty and truly-empty are different messages.
+6. **Tables:** sortable columns set `sortKey` to a key the endpoint's `SortWhitelist` allows. Secondary columns use `hideBelow` so phones stay readable. The main text column gets `className: 'w-full max-w-0'` so long values truncate.
+7. **Check at 390px and 1440px.** Text never overflows, and badges never clip.
+8. AI features use the `ai` tokens and show their evidence (PRODUCT.md, principle 1).
 
 ## 11. Add a form
 
-1. Write a Zod schema in `features/<module>/schemas/` that mirrors the backend DTO's constraints (required fields, max lengths, ranges).
-2. `useForm({ resolver: zodResolver(schema) })` with shadcn `Form` components.
-3. Submit through a mutation hook. Disable the submit button while pending.
-4. Map a `400` Problem Details `errors[]` array back onto fields with `form.setError(field, …)`. Show other errors as a toast.
-5. On success, invalidate the affected queries, show a toast and navigate or close the dialog.
-
----
+1. Write a Zod schema in `features/<module>/schemas.ts` that mirrors the backend DTO's constraints, such as required fields, maximum lengths, ranges and `newPassword` for passwords.
+2. `useForm({ resolver: zodResolver(schema), defaultValues })`. Wrap every control in `FormField`, which wires the label, hint and error for screen readers. Use `PasswordInput` for passwords.
+3. Submit through a mutation hook and disable the submit button while pending, with a spinner.
+4. In `onError`, call `applyFieldErrors(error, form.setError, [...fields])` to put a 400's field errors on the matching inputs. Show anything else with `<FormAlert>{errorMessage(error)}</FormAlert>`.
+5. On success, invalidate the affected queries, show a `toast` or navigate, and close any dialog.
+6. Test the form with `renderRoutes` + `installFakeApi`: client validation blocks the request, server errors appear, and success leads to the right place.
 
 ## 12. Before you call a change done
 
-- [ ] `./mvnw verify` passes (backend) and `npm run lint && npm run typecheck && npm test` passes (frontend). Report failures as failures.
+- [ ] `./mvnw verify` passes (backend) and `npm run typecheck && npm run lint && npm test && npm run build` passes (frontend). Report failures as failures.
+- [ ] UI changes follow DESIGN.md (tokens, shared components, status semantics) and were looked at on desktop and mobile widths.
 - [ ] New company-owned data has tenant scoping and a cross-tenant test.
 - [ ] New endpoints have `@PreAuthorize` matching the RBAC table.
 - [ ] No secrets, API keys or personal data in code, logs or test fixtures.
