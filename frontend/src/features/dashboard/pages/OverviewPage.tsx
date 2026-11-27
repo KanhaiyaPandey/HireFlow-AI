@@ -74,6 +74,7 @@ export default function OverviewPage() {
           <StatCard
             label="Active employees"
             icon={Users}
+            to="/app/employees?status=ACTIVE"
             value={stats?.activeEmployees ?? undefined}
             loading={overview.isPending}
             error={overview.isError}

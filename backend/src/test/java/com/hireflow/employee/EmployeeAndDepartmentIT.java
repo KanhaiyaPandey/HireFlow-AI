@@ -110,7 +110,8 @@ class EmployeeAndDepartmentIT extends IntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Priya Nair"))
                 .andExpect(jsonPath("$.departmentName").value("Engineering"))
-                .andExpect(jsonPath("$.employmentStatus").value("ACTIVE"));
+                .andExpect(jsonPath("$.employmentStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.invitationPending").value(true));
 
         String accessToken = JsonPath.read(body(mockMvc.perform(post("/api/v1/auth/accept-invite")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -122,6 +123,7 @@ class EmployeeAndDepartmentIT extends IntegrationTest {
 
         getAs(employee, "/api/v1/employees/me")
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invitationPending").value(false))
                 .andExpect(jsonPath("$.employeeCode").value("ENG-7"))
                 .andExpect(jsonPath("$.departmentName").value("Engineering"));
         putAs(employee, "/api/v1/employees/me", Map.of("phone", "+91 98765 43210"))

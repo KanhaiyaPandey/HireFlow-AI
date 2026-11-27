@@ -20,6 +20,8 @@ const STATUS_TONES: Record<string, Tone> = {
   // Companies and employment
   ACTIVE: 'success',
   INACTIVE: 'neutral-strong',
+  // Accounts: invited but no password set yet
+  INVITED: 'warning',
   // Resume text extraction
   EXTRACTED: 'success',
   EMPTY: 'warning',

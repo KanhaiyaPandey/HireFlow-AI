@@ -53,7 +53,7 @@ function SidebarLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
   return (
     <NavLink
       to={item.to}
-      end
+      end={item.to === '/app'}
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(

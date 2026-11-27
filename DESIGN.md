@@ -118,6 +118,7 @@ Every status in the product has exactly one badge style. The badge always shows 
 | Job `CLOSED` | neutral (strong) |
 | Company / employment `ACTIVE` | success |
 | Company / employment `INACTIVE` | neutral (strong) |
+| Account `INVITED` ("Invite pending": invited, no password yet) | warning |
 | Resume text `EXTRACTED` | success |
 | Resume text `EMPTY` | warning |
 | Resume text `FAILED` | danger |

@@ -1,28 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { UserX } from 'lucide-react'
 
+import { DescriptionList } from '@/components/DescriptionList'
 import { EmptyState, ErrorState } from '@/components/EmptyState'
 import { LoadingSkeleton } from '@/components/LoadingSkeleton'
 import { PageHeader } from '@/components/PageHeader'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import type { Employee } from '@/features/employees/types'
 import { api } from '@/lib/api'
 import { formatDate, initials } from '@/lib/format'
 import { errorMessage, statusOf } from '@/lib/problem'
-
-/** Mirrors employee.dto.EmployeeResponse */
-interface Employee {
-  id: string
-  name: string
-  email: string
-  employeeCode: string
-  designation: string | null
-  departmentName: string | null
-  joiningDate: string | null
-  employmentStatus: 'ACTIVE' | 'INACTIVE'
-  phone: string | null
-  profilePictureUrl: string | null
-}
 
 /** An employee's own record (GET /employees/me). Editing arrives with the employee pages (Day 9). */
 export default function MyProfilePage() {
@@ -56,14 +44,6 @@ export default function MyProfilePage() {
 }
 
 function ProfileDetails({ employee }: { employee: Employee }) {
-  const rows: [string, string][] = [
-    ['Employee code', employee.employeeCode],
-    ['Designation', employee.designation ?? '—'],
-    ['Department', employee.departmentName ?? 'Not assigned'],
-    ['Joining date', formatDate(employee.joiningDate)],
-    ['Email', employee.email],
-    ['Phone', employee.phone ?? '—'],
-  ]
   return (
     <>
       <div className="flex items-center gap-4">
@@ -78,14 +58,17 @@ function ProfileDetails({ employee }: { employee: Employee }) {
           </div>
         </div>
       </div>
-      <dl className="mt-6 grid gap-x-8 gap-y-5 border-t border-border pt-6 sm:grid-cols-2">
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-[13px] text-muted-foreground">{label}</dt>
-            <dd className="mt-0.5 text-sm font-medium break-words text-foreground">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <DescriptionList
+        className="mt-6 border-t border-border pt-6"
+        items={[
+          { label: 'Employee code', value: <span className="font-mono">{employee.employeeCode}</span> },
+          { label: 'Designation', value: employee.designation },
+          { label: 'Department', value: employee.departmentName ?? 'Not assigned' },
+          { label: 'Joining date', value: employee.joiningDate && formatDate(employee.joiningDate) },
+          { label: 'Email', value: employee.email },
+          { label: 'Phone', value: employee.phone },
+        ]}
+      />
     </>
   )
 }

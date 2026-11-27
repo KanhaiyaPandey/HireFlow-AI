@@ -43,6 +43,17 @@ export const router = createBrowserRouter([
             children: [{ index: true, lazy: page(() => import('@/features/dashboard/pages/OverviewPage')) }],
           },
           {
+            element: <RequireRole roles={['HR_ADMIN']} />,
+            children: [
+              { path: 'employees', lazy: page(() => import('@/features/employees/pages/EmployeesPage')) },
+              { path: 'employees/new', lazy: page(() => import('@/features/employees/pages/EmployeeFormPage')) },
+              { path: 'employees/:id', lazy: page(() => import('@/features/employees/pages/EmployeeProfilePage')) },
+              { path: 'employees/:id/edit', lazy: page(() => import('@/features/employees/pages/EmployeeFormPage')) },
+              { path: 'departments', lazy: page(() => import('@/features/departments/pages/DepartmentsPage')) },
+              { path: 'departments/:id', lazy: page(() => import('@/features/departments/pages/DepartmentDetailPage')) },
+            ],
+          },
+          {
             element: <RequireRole roles={['EMPLOYEE', 'HR_ADMIN', 'RECRUITER']} />,
             children: [{ path: 'profile', lazy: page(() => import('@/features/employee/pages/MyProfilePage')) }],
           },

@@ -41,8 +41,8 @@ export const NAVIGATION: Record<Exclude<Role, 'CANDIDATE'>, NavGroup[]> = {
     {
       label: 'People',
       items: [
-        { label: 'Employees', to: '/app/employees', icon: Users, ready: false },
-        { label: 'Departments', to: '/app/departments', icon: Network, ready: false },
+        { label: 'Employees', to: '/app/employees', icon: Users, ready: true },
+        { label: 'Departments', to: '/app/departments', icon: Network, ready: true },
       ],
     },
     {

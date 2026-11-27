@@ -9,6 +9,8 @@ import com.hireflow.employee.entity.EmploymentStatus;
 /**
  * An employee with their name and email (from the user account) and department name. Built directly
  * by a JPQL constructor expression in EmployeeRepository, so the parameter order must match that query.
+ *
+ * @param invitationPending the employee hasn't set a password yet (their invitation is still open)
  */
 public record EmployeeResponse(
         UUID id,
@@ -23,5 +25,6 @@ public record EmployeeResponse(
         EmploymentStatus employmentStatus,
         String phone,
         String profilePictureUrl,
+        boolean invitationPending,
         Instant createdAt) {
 }

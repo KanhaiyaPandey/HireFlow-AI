@@ -1,6 +1,8 @@
 import { Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { FormAlert } from '@/components/FormAlert'
+
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -23,6 +25,8 @@ interface ConfirmDialogProps {
   tone?: 'default' | 'danger'
   /** Keeps the dialog open and shows progress while the action runs. */
   pending?: boolean
+  /** Why the action failed, shown inside the dialog so the user can cancel or retry. */
+  error?: ReactNode
   onConfirm: () => void
 }
 
@@ -35,6 +39,7 @@ export function ConfirmDialog({
   confirmLabel,
   tone = 'default',
   pending = false,
+  error,
   onConfirm,
 }: ConfirmDialogProps) {
   return (
@@ -44,6 +49,7 @@ export function ConfirmDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {error && <FormAlert>{error}</FormAlert>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
           <Button variant={tone === 'danger' ? 'destructive' : 'default'} disabled={pending} onClick={onConfirm}>

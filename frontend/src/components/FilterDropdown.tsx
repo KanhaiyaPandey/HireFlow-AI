@@ -33,10 +33,10 @@ export function FilterDropdown({ label, options, value, onChange, allLabel = 'Al
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className={cn('justify-between gap-2 font-normal', selected && 'border-primary/40 bg-accent/60')}>
+        <Button variant="outline" className={cn('justify-start gap-1.5 font-normal', selected && 'border-primary/40 bg-accent/60')}>
           <span className="text-muted-foreground">{label}:</span>
           <span className="font-medium text-foreground">{selected?.label ?? allLabel}</span>
-          <ChevronDown className="text-muted-foreground" aria-hidden="true" />
+          <ChevronDown className="ml-auto text-muted-foreground" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">

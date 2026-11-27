@@ -22,7 +22,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
     String SELECT_RESPONSE = """
             select new com.hireflow.employee.dto.EmployeeResponse(
                 e.id, e.userId, u.name, u.email, e.employeeCode, e.designation, e.departmentId, d.name,
-                e.joiningDate, e.employmentStatus, e.phone, e.profilePictureUrl, e.createdAt)
+                e.joiningDate, e.employmentStatus, e.phone, e.profilePictureUrl,
+                case when u.passwordHash is null then true else false end, e.createdAt)
             from Employee e
             join User u on u.id = e.userId
             left join Department d on d.id = e.departmentId

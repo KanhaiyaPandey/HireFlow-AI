@@ -13,9 +13,10 @@ export default defineConfig({
   server: {
     port: 5173,
     // Same origin in development: the refresh cookie (Path=/api/v1/auth) and CORS just work.
+    // API_PROXY_TARGET lets a second dev server talk to a backend on another port.
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/media': 'http://localhost:8080', // public images when the backend uses local storage
+      '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8080',
+      '/media': process.env.API_PROXY_TARGET ?? 'http://localhost:8080', // public images with local storage
     },
   },
   test: {
