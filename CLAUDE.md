@@ -18,7 +18,8 @@ Design docs — read the relevant one before changing that area:
 
 ## Stack
 
-- **Backend:** Java 21, Spring Boot 3.5.x, Spring Security, Spring Data JPA (Hibernate 6), Flyway, Spring AI 1.x, Apache PDFBox, MapStruct, Lombok, JJWT, SpringDoc OpenAPI, Maven
+- **Backend:** Java 21, Spring Boot 3.5.x, Spring Security, Spring Data JPA (Hibernate 6), Flyway, Spring AI 1.1.x, Apache PDFBox, MapStruct, Lombok, JJWT, SpringDoc OpenAPI, Maven
+- **AI:** Google Gemini API through Spring AI's Google GenAI starters (`spring-ai-starter-model-google-genai`, `spring-ai-starter-model-google-genai-embedding`). Chat model is configurable; embeddings use `gemini-embedding-001` at **768 dimensions**. Stay on Spring AI 1.1.x: 2.x targets Spring Boot 4.
 - **Database:** PostgreSQL 17 with the pgvector extension
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, TanStack Query, React Hook Form, Zod, Axios, Recharts
 - **Tests:** JUnit 5, Mockito, MockMvc, Spring Boot Test, Testcontainers

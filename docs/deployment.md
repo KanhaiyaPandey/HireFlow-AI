@@ -25,9 +25,9 @@ How to run HireFlow AI locally, how it is configured, and how it is built, teste
 
 | Environment | Frontend | Backend | Database | Files | AI |
 |---|---|---|---|---|---|
-| **Local** | Vite dev server `:5173` | `./mvnw spring-boot:run` `:8080` | Docker `pgvector/pgvector:pg17` | Local directory | Real provider key, or mocked |
-| **CI** | `npm run build` | `./mvnw verify` | Testcontainers | Temp directory | Always mocked |
-| **Production** | Vercel | Docker container on AWS EC2 behind Caddy | Managed PostgreSQL with pgvector | S3 (private bucket) | Real provider key |
+| **Local** | Vite dev server `:5173` | `./mvnw spring-boot:run` `:8080` | Docker `pgvector/pgvector:pg17` | Local directory | Gemini API key (free tier, made-up resumes only) |
+| **CI** | `npm run build` | `./mvnw verify` | Testcontainers | Temp directory | Always mocked; no key |
+| **Production** | Vercel | Docker container on AWS EC2 behind Caddy | Managed PostgreSQL with pgvector | S3 (private bucket) | Gemini API key with billing enabled |
 
 Spring profiles: `local`, `test`, `prod`, plus an optional `demo` profile that seeds demo data.
 
@@ -100,6 +100,21 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 6MB
+  ai:
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY}            # Gemini Developer API (AI Studio key), not Vertex AI
+        chat:
+          options:
+            model: ${GEMINI_CHAT_MODEL}       # always set; don't rely on Spring AI's default
+            temperature: 0.1
+            response-mime-type: application/json
+        embedding:
+          api-key: ${GEMINI_API_KEY}
+          text:
+            options:
+              model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
+              dimensions: 768                 # must match vector(768) in the migrations
 
 hireflow:
   jwt:
@@ -125,9 +140,9 @@ hireflow:
 | `COOKIE_SECURE` | | `true` | `false` only on plain-HTTP localhost |
 | `FRONTEND_BASE_URL` | ✓ | `https://app.<your-domain>` | Used in invite and reset links |
 | `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | ✓ first boot | | Used once by the seed step; rotate the password after the first login |
-| `AI_CHAT_MODEL` | ✓ | | Chat model name; the provider is an open decision ([architecture.md §13](architecture.md#13-open-decisions)) |
-| `AI_EMBEDDING_MODEL` | ✓ | | Must match the `vector(N)` dimension in the migrations |
-| Provider API key(s) | ✓ | `SPRING_AI_OPENAI_API_KEY`, `SPRING_AI_ANTHROPIC_API_KEY`, … | Bound by Spring's relaxed binding to `spring.ai.<provider>.api-key` |
+| `GEMINI_API_KEY` | ✓ | | From Google AI Studio. Used for both chat and embeddings. Enable billing on its project before real resumes are processed ([architecture.md §8.8](architecture.md#88-cost-and-safety-controls)) |
+| `GEMINI_CHAT_MODEL` | ✓ | current stable Gemini Flash model ID | Take the ID from Google's Gemini API model list. Changing it needs no code change |
+| `GEMINI_EMBEDDING_MODEL` | | `gemini-embedding-001` | Changing it needs a new migration and a full re-index |
 | `AI_DAILY_QUOTA_PER_COMPANY` | | `200` | Screenings, searches and question generations per company per day |
 | `STORAGE_TYPE` | ✓ | `s3` | `local` or `s3` |
 | `STORAGE_LOCAL_DIR` | | `./data/uploads` | Local only |
@@ -223,7 +238,7 @@ flowchart LR
 
     B -->|"TLS"| P[(Managed PostgreSQL<br/>+ pgvector)]
     B -->|"instance role"| S[(S3 bucket<br/>private)]
-    B --> L[LLM and embedding API]
+    B --> L[Gemini API<br/>chat + embeddings]
     G[GitHub Actions] -->|"push image"| R[(GHCR)]
     G -->|"SSH: pull + up"| EC2
     R --> B
@@ -326,7 +341,7 @@ Runtime secrets live only on the server (or in AWS SSM Parameter Store), never i
 
 ## 10. First production deployment
 
-1. **Choose the open items:** LLM and embedding provider, database provider, domain ([architecture.md §13](architecture.md#13-open-decisions)).
+1. **Choose the open items:** database provider, file storage, domain ([architecture.md §13](architecture.md#13-open-decisions)). Create a **separate** Gemini API key for production with billing enabled; keep the development key on the free tier.
 2. **Database:** create the instance, the `hireflow` database and the `hireflow_app` user; enable SSL; restrict network access; enable backups.
 3. **S3:** create a private bucket with "block all public access" on. Create an IAM role with `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on that bucket only, and attach it to the EC2 instance.
 4. **EC2:** launch Ubuntu LTS, attach an Elastic IP, configure security groups (§6), install Docker and the compose plugin, and create `/opt/hireflow` with `docker-compose.prod.yml`, `Caddyfile` and `.env`.
@@ -368,7 +383,8 @@ Runtime secrets live only on the server (or in AWS SSM Parameter Store), never i
 
 A public demo URL with working AI features can run up a bill if it's abused.
 
-- Set a **monthly spending limit or budget alert** with the LLM provider.
+- Set a **budget alert** (and a spend cap where available) on the Google Cloud billing account behind the production Gemini API key.
+- Keep **separate Gemini API keys** for development and production, so a leaked development key can't spend production budget, and you can rotate one without the other.
 - Set an **AWS Budget** alert for the account.
 - Enforce **AI quotas** per company per day (`AI_DAILY_QUOTA_PER_COMPANY`) and **rate limits** on auth and AI endpoints ([architecture.md §6.4](architecture.md#64-other-controls)).
 - **Demo accounts** are public: give the demo company a lower quota, and reset demo data on each deploy (the `demo` seeder is idempotent).

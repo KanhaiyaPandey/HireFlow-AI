@@ -234,7 +234,7 @@ The retry and the `FAILED` handling live in the calling service, so they can be 
 
 ## 7. Index and search embeddings
 
-1. The vector dimension in `resume_embeddings.embedding vector(N)` must equal the embedding model's output size. Changing models means a new migration plus a re-index job.
+1. The column is `vector(768)`, matching `gemini-embedding-001` with `dimensions: 768`. The two must always agree: a mismatch fails at insert time. Changing the model or size means a new migration plus a re-index job.
 2. Split text with Spring AI's `TokenTextSplitter`, embed in a batch through `EmbeddingService`, and insert one row per chunk with the owning `company_id`.
 3. Index asynchronously after the application commits (`@TransactionalEventListener(phase = AFTER_COMMIT)` + `@Async`).
 4. Query with plain SQL and pgvector's `<=>` (cosine distance), **always** filtered by `company_id`, grouped by candidate. See [architecture.md §8.5](architecture.md#85-semantic-candidate-search).

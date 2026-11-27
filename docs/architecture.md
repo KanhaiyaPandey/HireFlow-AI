@@ -60,8 +60,8 @@ flowchart LR
     BE[Spring Boot API<br/>modular monolith]
     DB[(PostgreSQL + pgvector)]
     FS[(Object storage<br/>S3 / local disk)]
-    LLM[LLM provider<br/>chat model]
-    EMB[Embedding model]
+    LLM[Gemini API<br/>chat model]
+    EMB[Gemini API<br/>gemini-embedding-001]
 
     Users --> FE
     FE -- "REST /api/v1 (JSON, JWT)" --> BE
@@ -286,7 +286,7 @@ All primary keys are `uuid`. All timestamps are `timestamptz`. Enums are stored 
 | `application_status_history` | application_id, old_status, new_status, changed_by, reason, created_at | written in the same transaction as the change |
 | `application_notes` | application_id, author_id, body, created_at | |
 | `ai_screenings` | company_id, application_id, status, match_score, score_breakdown `jsonb`, matched_skills `jsonb`, missing_skills `jsonb`, explanation, model_name, prompt_version, error_message, created_at, completed_at | status: `PENDING`, `COMPLETED`, `FAILED` |
-| `resume_embeddings` | company_id, resume_id, candidate_id, chunk_index, content, embedding `vector(N)` | N fixed by the embedding model (§13) |
+| `resume_embeddings` | company_id, resume_id, candidate_id, chunk_index, content, embedding `vector(768)` | 768 = `gemini-embedding-001` with output dimensions set to 768 (§8.2) |
 | `interviews` | company_id, application_id, interviewer_id → users, scheduled_at, duration_minutes, interview_type, meeting_link, instructions, status, feedback, rating | status: `SCHEDULED`, `COMPLETED`, `CANCELLED`, `NO_SHOW` |
 | `interview_questions` | interview_id, category, question, source (`AI`, `MANUAL`), created_at | category: `TECHNICAL`, `SCENARIO`, `PROBLEM_SOLVING` |
 | `notifications` | user_id, type, message, link, read_at, created_at | |
@@ -333,6 +333,18 @@ Every AI call sits behind an interface in `com.hireflow.ai`, so tests can mock i
 | `QuestionGenerator` | `ChatClient` → `.entity(GeneratedQuestions.class)` | Interview module |
 
 Prompts are versioned files in `src/main/resources/prompts/` (for example, `resume-extraction-v1.st`). The version is stored with each result.
+
+**Provider: Google Gemini API**, called through Spring AI 1.1.x's Google GenAI integration with an API key from Google AI Studio. Setting the key selects the Gemini Developer API rather than Vertex AI, so no Google Cloud project or service account is needed.
+
+| Use | Spring Boot starter | Model | Settings |
+|---|---|---|---|
+| Extraction, question generation | `spring-ai-starter-model-google-genai` | Current Gemini Flash model, set by `GEMINI_CHAT_MODEL` | `response-mime-type: application/json`; temperature 0.1 for extraction, around 0.7 for questions |
+| Embeddings | `spring-ai-starter-model-google-genai-embedding` | `gemini-embedding-001` | `dimensions: 768` |
+
+- **Chat model:** always set explicitly. Spring AI's built-in default is an older model that Google retires on its own schedule. Pick the current stable Flash model from Google's model list; Flash is fast and cheap enough for extraction.
+- **Why 768 dimensions:** `gemini-embedding-001` returns 3072 dimensions by default and can be shortened to 768 or 1536 with little quality loss. 768 keeps rows small, and pgvector can only build an HNSW index on `vector` columns of 2000 dimensions or fewer, so 3072 would rule out an index later.
+- **Check on Day 13:** Spring AI 1.1's embedding docs list only older Google embedding models. Before indexing anything, run a smoke test confirming that `gemini-embedding-001` with `dimensions: 768` really returns 768-length vectors. If it doesn't, call the Gemini embeddings REST endpoint directly behind the same `EmbeddingService` port; nothing else changes.
+- **Changing the embedding model** later needs a new migration and a re-index of every resume, because vectors from different models can't be compared.
 
 ### 8.3 Resume screening
 
@@ -452,6 +464,7 @@ Same pattern as §8.5, with `policy_documents` and `policy_chunks` tables scoped
 - `model_name` and `prompt_version` are stored with every result.
 - Resume text is placed in the user message, never in the system prompt, and the system prompt instructs the model to treat it as data.
 - Personal data sent to the LLM is limited to the resume text needed for the task.
+- **Gemini free tier and personal data:** under Google's terms, content sent on the Gemini API's free (unpaid) tier may be used to improve Google's products, while paid-tier content is not. Free tier is acceptable for development with **made-up resumes only**. Enable billing on the API key before real candidates upload real resumes, including on the public demo. Check Google's current terms when enabling billing.
 
 ---
 
@@ -527,6 +540,8 @@ stateDiagram-v2
 | D8 | RFC 9457 `ProblemDetail` for errors | Built into Spring 6; a standard format | — |
 | D9 | Candidates are global; companies see them only through applications | Matches real job boards; privacy by default | — |
 | D10 | One role per user | Matches the spec; simpler checks | A user needs several roles |
+| D11 | Google Gemini API for both chat and embeddings, through Spring AI 1.1.x Google GenAI | One provider, one API key, no cloud project to set up; Spring AI 1.1.x is the line that supports Spring Boot 3.5 | Moving to Spring Boot 4 (Spring AI 2.x) |
+| D12 | `gemini-embedding-001` at 768 dimensions | Small vectors, can still use an HNSW index, little quality loss | Search quality is measurably poor |
 
 ---
 
@@ -536,8 +551,7 @@ These are not decided yet. Do not pick one silently.
 
 | Question | Options | Affects |
 |---|---|---|
-| LLM provider and chat model | Anthropic Claude, OpenAI, local model via Ollama | Spring AI starter, cost, API key variables |
-| Embedding model | OpenAI `text-embedding-3-small` (1536 dims), Ollama `nomic-embed-text` (768 dims), Voyage AI, … | `vector(N)` in the migration; changing it later means a new migration and re-embedding everything. Anthropic has no embedding model, so choosing Claude for chat still needs a separate embedding provider |
+| Exact Gemini chat model ID | The current stable Gemini Flash model at build time | Only the `GEMINI_CHAT_MODEL` value; the code doesn't change |
 | File storage | AWS S3, Cloudinary | `FileStorage` implementation. S3 is the better fit for PDFs |
 | Managed PostgreSQL | AWS RDS, Neon, Supabase | Connection string; all support pgvector |
 | Email for invites and password reset | Log-only for the MVP, Amazon SES, Resend, … | Whether reset and invite links are delivered or only logged |
