@@ -51,7 +51,7 @@ Spring profiles: `local`, `test`, `prod`, plus an optional `demo` profile that s
 # 1. Configuration
 cp .env.example .env                      # fill in AI keys; local defaults work for the rest
 
-# 2. Database (Postgres 17 + pgvector)
+# 2. Database (Postgres 17 + pgvector, on host port 5433)
 docker compose up -d postgres
 
 # 3. Backend — Flyway migrates on startup
@@ -89,7 +89,7 @@ All configuration comes from environment variables. `application.yml` references
 # application.yml (excerpt)
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/hireflow}
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/hireflow}
     username: ${DB_USERNAME:hireflow}
     password: ${DB_PASSWORD:hireflow}
   jpa:
@@ -197,7 +197,7 @@ Used only for running the full stack locally; production uses Vercel. It builds 
 
 | Service | Image | Profile | Notes |
 |---|---|---|---|
-| `postgres` | `pgvector/pgvector:pg17` | default | Port 5432, named volume, `pg_isready` healthcheck |
+| `postgres` | `pgvector/pgvector:pg17` | default | Host port **5433** (avoids a locally installed Postgres on 5432), named volume, `pg_isready` healthcheck |
 | `backend` | built from `backend/` | `full` | Waits for a healthy `postgres`; reads `.env` |
 | `frontend` | built from `frontend/` | `full` | Port 5173 → nginx |
 
@@ -209,7 +209,7 @@ services:
       POSTGRES_DB: hireflow
       POSTGRES_USER: hireflow
       POSTGRES_PASSWORD: hireflow
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hireflow -d hireflow"]

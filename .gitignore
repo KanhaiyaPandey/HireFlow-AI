@@ -1,0 +1,29 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Java / Maven
+backend/target/
+*.class
+*.log
+hs_err_pid*
+
+# Local uploads (STORAGE_TYPE=local)
+backend/data/
+data/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDEs and OS
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json

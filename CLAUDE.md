@@ -8,7 +8,7 @@ HireFlow AI is a multi-tenant HRMS and applicant tracking system (ATS) with AI f
 
 It is a portfolio project for a Java Full Stack role. The author must be able to explain every line in a technical interview, so prefer clear, conventional Spring code over clever abstractions, and keep the scope to what the 18-day plan needs.
 
-**Status:** design phase. No code has been scaffolded yet. The commands below describe the planned setup; update this file when they become real.
+**Status:** Day 1–2 foundation is done: the backend skeleton, security baseline, Problem Details error handling, `PageResponse`, and the full V1 Flyway schema, with unit and integration tests passing. JPA entities are added with each module (Day 3 onward: `auth` first). The frontend is not scaffolded yet (Day 7).
 
 Design docs — read the relevant one before changing that area:
 
@@ -35,10 +35,12 @@ docs/                 architecture, skills, deployment, schema, API docs
 docker-compose.yml    local Postgres (pgvector) and, later, the full stack
 ```
 
-## Commands (planned)
+## Commands
+
+Frontend commands become real on Day 7.
 
 ```bash
-docker compose up -d postgres            # Postgres + pgvector on localhost:5432
+docker compose up -d postgres            # Postgres 17 + pgvector on localhost:5433 (5432 is taken by a local Homebrew Postgres)
 cd backend && ./mvnw spring-boot:run     # API on :8080, Swagger UI at /swagger-ui.html
 cd backend && ./mvnw test                # unit tests (no Docker needed)
 cd backend && ./mvnw verify              # unit + integration tests (needs Docker for Testcontainers)

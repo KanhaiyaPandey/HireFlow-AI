@@ -1,0 +1,25 @@
+# Local development services.
+#   docker compose up -d postgres     -> Postgres 17 + pgvector on localhost:5433
+# Port 5433 on the host avoids clashing with a locally installed Postgres on 5432.
+# The backend and frontend services are added on Day 16 (see docs/deployment.md §5).
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: hireflow-postgres
+    environment:
+      POSTGRES_DB: hireflow
+      POSTGRES_USER: hireflow
+      POSTGRES_PASSWORD: hireflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hireflow -d hireflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

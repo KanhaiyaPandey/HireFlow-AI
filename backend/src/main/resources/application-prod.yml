@@ -1,0 +1,20 @@
+# Production: no defaults for anything secret or environment-specific.
+# A missing variable stops the app at startup instead of running with a local value.
+
+# The optional .env import from application.yml finds nothing in the container's working
+# directory; Docker Compose passes the server's .env in as real environment variables.
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+logging:
+  structured:
+    format:
+      console: ecs                # JSON logs to stdout (docs/deployment.md §12)
+
+hireflow:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}

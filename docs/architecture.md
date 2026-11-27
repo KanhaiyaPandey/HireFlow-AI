@@ -146,6 +146,7 @@ com.hireflow.recruitment
 2. A record in another company is reported as **404 Not Found**, so callers cannot probe which ids exist.
 3. Child records (for example, interviews of an application) are reached through a tenant-checked parent, or carry their own `company_id`.
 4. Every endpoint touching company data has a cross-tenant integration test (see [skills.md §9](skills.md#9-write-tests)).
+5. **Database backstop:** composite foreign keys such as `(job_id, company_id) → jobs (id, company_id)` make PostgreSQL itself reject a row that links to another company's record. This covers an employee in another company's department, an application to another company's job, an interviewer from another company, and similar links. A bug in the service layer then fails loudly instead of leaking data.
 
 **Who sits outside a tenant:**
 
