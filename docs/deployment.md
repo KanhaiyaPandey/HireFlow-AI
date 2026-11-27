@@ -407,3 +407,4 @@ A public demo URL with working AI features can run up a bill if it's abused.
 - [ ] Rate limits and AI quotas are active; provider and AWS budget alerts are set.
 - [ ] The cross-tenant isolation tests pass in CI, and a manual two-company check passes in production.
 - [ ] The README has the live URL and demo credentials, and the demo accounts have limited quotas.
+- [ ] `LoggingAccountEmailSender` is replaced by a real email provider before inviting real users. It writes invite and reset links to the log, and anyone who can read the logs could take over those accounts.

@@ -9,29 +9,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import java.util.UUID;
 
+import com.hireflow.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Boots the whole application against a real PostgreSQL + pgvector container: proves the Flyway
  * migrations apply, Hibernate validation passes, and the baseline security rules hold.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-@Import(TestcontainersConfig.class)
-class HireFlowApplicationIT {
-
-    @Autowired
-    private JdbcTemplate jdbc;
-
-    @Autowired
-    private MockMvc mockMvc;
+class HireFlowApplicationIT extends IntegrationTest {
 
     @Test
     void migrationsCreateEveryTable() {

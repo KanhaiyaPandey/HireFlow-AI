@@ -8,11 +8,12 @@ HireFlow AI is a multi-tenant HRMS and applicant tracking system (ATS) with AI f
 
 It is a portfolio project for a Java Full Stack role. The author must be able to explain every line in a technical interview, so prefer clear, conventional Spring code over clever abstractions, and keep the scope to what the 18-day plan needs.
 
-**Status:** Days 1–3 are done.
+**Status:** Days 1–4 are done.
 - **Days 1–2:** backend skeleton, Problem Details error handling, `PageResponse`, and the full V1 Flyway schema.
 - **Day 3, authentication:** candidate and company sign-up, login, JWT access tokens, rotating refresh-token cookie with reuse detection, logout, `/auth/me`, and the super admin seeder.
-- **Entities so far:** `Company` and `Candidate` exist only as minimal entities for sign-up. Their modules are filled in on Days 4–5; the other entities arrive with their modules.
-- **Not started:** password reset and invites (planned with user management on Day 4), rate limiting, and the frontend (Day 7).
+- **Day 4, HR core:** company profiles and activation; departments with managers; employee records, which always come with an invited login; HR user management (invite, resend, enable/disable); password reset.
+- **Entities so far:** `Candidate` is still minimal (filled in on Day 5); the other entities arrive with their modules.
+- **Not started:** rate limiting, real email delivery (links are logged for now), logo and profile-picture uploads (Day 6), and the frontend (Day 7).
 
 Design docs — read the relevant one before changing that area:
 
@@ -74,7 +75,10 @@ cd frontend && npm run lint && npm run typecheck && npm test
 - Entities use `@Getter`/`@Setter` only — no `@Data`, no Lombok `equals`/`hashCode`/`toString` on entities. UUID primary keys. Timestamps are `Instant` mapped to `timestamptz`.
 - Constructor injection only (`@RequiredArgsConstructor` on `final` fields). No field `@Autowired`.
 - Errors: throw `NotFoundException`, `ConflictException`, `BusinessRuleException` or similar from `common.exception`; `GlobalExceptionHandler` turns them into RFC 9457 `ProblemDetail` responses. No ad-hoc error maps.
-- List endpoints return `PageResponse<T>` (`content`, `page`, `size`, `totalElements`, `totalPages`), never Spring's `Page`/`PageImpl` directly.
+- List endpoints return `PageResponse<T>` (`content`, `page`, `size`, `totalElements`, `totalPages`), never Spring's `Page`/`PageImpl` directly. Sorting goes through `SortWhitelist`; search through `SearchPatterns` (see docs/skills.md §2).
+- Read queries may join another module's tables into a DTO (the read-model exception, docs/architecture.md §4). Writes never do.
+- Inside a service, public `@Transactional` methods don't call each other through `this`, because that bypasses the proxy. Share private helpers instead.
+- Integration tests extend `support.IntegrationTest` and use `TestFixtures`. Shared mocks and properties belong on the base class, so all tests keep sharing one context.
 - `@Transactional` on service methods that write; `@Transactional(readOnly = true)` on reads. No transactions in controllers.
 - Slow AI work (screening, embedding) runs `@Async`: write a `PENDING` row first, return `202 Accepted`, and let the client poll.
 - API base path is `/api/v1`. Plural nouns; state changes use `PATCH /{id}/status`.

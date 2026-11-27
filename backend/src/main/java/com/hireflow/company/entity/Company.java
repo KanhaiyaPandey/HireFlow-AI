@@ -67,4 +67,14 @@ public class Company {
         company.status = CompanyStatus.ACTIVE;
         return company;
     }
+
+    public void updateProfile(String name, String email, String website, String industry,
+                              String description, String address) {
+        this.name = name;
+        this.email = email;
+        this.website = website;
+        this.industry = industry;
+        this.description = description;
+        this.address = address;
+    }
 }

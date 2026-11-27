@@ -5,6 +5,7 @@ import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -47,6 +48,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     ProblemDetail handleBusinessRule(BusinessRuleException ex) {
         return problem(HttpStatus.UNPROCESSABLE_ENTITY, "business-rule", "Business rule violated", ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    ProblemDetail handleInvalidRequest(InvalidRequestException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", ex.getMessage());
+    }
+
+    /** Safety net: a sort or filter on a property that doesn't exist is the client's mistake, not a 500. */
+    @ExceptionHandler(PropertyReferenceException.class)
+    ProblemDetail handlePropertyReference(PropertyReferenceException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request",
+                "Unknown field '%s'.".formatted(ex.getPropertyName()));
     }
 
     @ExceptionHandler(UnauthorizedException.class)

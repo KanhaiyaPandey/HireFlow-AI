@@ -3,10 +3,13 @@ package com.hireflow.auth.controller;
 import java.net.URI;
 import java.time.Duration;
 
+import com.hireflow.auth.dto.AcceptInviteRequest;
 import com.hireflow.auth.dto.AuthResponse;
+import com.hireflow.auth.dto.ForgotPasswordRequest;
 import com.hireflow.auth.dto.LoginRequest;
 import com.hireflow.auth.dto.RegisterCandidateRequest;
 import com.hireflow.auth.dto.RegisterCompanyRequest;
+import com.hireflow.auth.dto.ResetPasswordRequest;
 import com.hireflow.auth.dto.UserResponse;
 import com.hireflow.auth.service.AuthService;
 import com.hireflow.auth.service.AuthService.AuthResult;
@@ -75,6 +78,26 @@ public class AuthController {
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie("", Duration.ZERO).toString())
                 .build();
+    }
+
+    @PostMapping("/accept-invite")
+    @Operation(summary = "Set a first password from an invitation link, and sign in")
+    public ResponseEntity<AuthResponse> acceptInvite(@Valid @RequestBody AcceptInviteRequest request) {
+        return ok(authService.acceptInvite(request));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Email a password reset link. Always 202, whether or not the email has an account")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Set a new password from a reset link. Signs the user out everywhere")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")

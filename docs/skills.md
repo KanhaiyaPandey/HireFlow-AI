@@ -41,7 +41,9 @@ The *why* behind these rules is in [architecture.md](architecture.md). The rules
 - [ ] `@PreAuthorize` with the roles from the RBAC table in [architecture.md §6.3](architecture.md#63-authorization-rbac).
 - [ ] The service takes the tenant from `CurrentUser`, never from the request.
 - [ ] Correct status code: `201` + `Location` on create, `204` on delete, `202` for async work.
-- [ ] List endpoints accept `Pageable`, cap `size` at 100 and return `PageResponse<T>`.
+- [ ] List endpoints accept `Pageable` (`size` is capped at 100 globally) and return `PageResponse<T>`.
+- [ ] Sorting goes through a `SortWhitelist` constant in the service. Use `properties(...)` when the query selects an entity, and `jpqlExpressions(...)` for hand-written JPQL with aliases such as `u.name`. Document the allowed keys in `@Operation`.
+- [ ] Free-text search uses `SearchPatterns.contains(q)` with `lower(col) like :pattern escape '!'` in the query. Optional enum filters pass a set (all values when absent) instead of `null`. See `EmployeeRepository` for the pattern.
 - [ ] OpenAPI annotations (`@Operation`, `@Tag`) where the meaning isn't obvious.
 - [ ] Tests: service unit test, plus an integration test for auth, validation, the happy path and cross-tenant access ([§9](#9-write-tests)).
 
@@ -296,6 +298,16 @@ void recruiterCannotReadAnotherCompanysJob() throws Exception {
 ```
 
 Write the same test for update, delete and status-change endpoints, and assert that the other company's row is unchanged afterwards.
+
+**Integration test setup.** Extend `com.hireflow.support.IntegrationTest`. It gives you `mockMvc`, `jdbc`, `json(...)`, a mocked `emailSender` with `capturedInviteToken(email)`, and `fixtures`:
+
+```java
+Tenant tenant = fixtures.newTenant();               // a company with an HR admin and a recruiter
+Account employee = fixtures.account(Role.EMPLOYEE, tenant.companyId());
+mockMvc.perform(get("/api/v1/employees").header(AUTHORIZATION, tenant.hrAdmin().bearer()));
+```
+
+Every integration test class shares one Spring context and one PostgreSQL container, because they all use the same configuration. Adding a `@MockitoBean` or a property to a single class starts a second context, so put shared ones on the base class. Fixtures use unique names, so tests don't interfere and need no cleanup.
 
 **AI in tests.** Replace the ports with mocks (`@MockitoBean ResumeExtractor extractor` in Spring Boot 3.4+). Cover the valid output, invalid output followed by a valid retry, invalid twice (→ `FAILED`), hallucinated skills (evidence missing → dropped) and an empty resume text.
 

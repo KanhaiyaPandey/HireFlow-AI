@@ -121,6 +121,8 @@ Rules:
 - **Across modules, entities reference each other by id**, as a plain `UUID` field (for example `User.companyId`, `Candidate.userId`), never with `@ManyToOne`. The database foreign key still guarantees the id is valid. Inside one module, real JPA relationships are fine (for example `RefreshToken.user`).
 - Dependencies point one way. `auth` depends on `company` and `candidate` because sign-up creates their records; neither of them depends on `auth`.
 - Cross-module side effects go through events. Example: `ApplicationStatusChangedEvent` is published by `application`, then `audit` writes a log row and `notification` notifies the candidate. Listeners use `@TransactionalEventListener(phase = AFTER_COMMIT)`, so nothing is logged or sent for a rolled-back change.
+- **Events that keep data consistent are synchronous.** Example: `EmployeeDeactivatedEvent` makes the department module clear that employee as a manager. These use a plain `@EventListener`, which runs inside the publisher's transaction, so both changes commit or roll back together.
+- **Read-model exception.** A list or detail *query* may join another module's tables to build one response DTO. For example, `EmployeeRepository` joins `users` for name and email and `departments` for the department name. Such queries are read-only, return DTOs (never the other module's entities), and are always scoped by `company_id`. Writes always go through the owning module's service. Without this, an employee list sorted by name would need a cross-module call for every row.
 
 Package layout inside a module:
 
@@ -191,7 +193,8 @@ sequenceDiagram
 |---|---|---|---|
 | Access | JWT, HS256, claims `sub` (userId), `role`, `cid` (companyId or absent) | 15 min | Browser memory |
 | Refresh | 256-bit random opaque string | 7 days | httpOnly cookie, scoped to `/api/v1/auth`; DB holds only its SHA-256 hash |
-| Password reset / invite | 256-bit random opaque string | 30 min, single use | DB holds only its hash |
+| Password reset | 256-bit random opaque string | 30 min, single use; a newer link cancels older ones | DB holds only its hash |
+| Invite | 256-bit random opaque string | 72 h, single use; resending cancels older links | DB holds only its hash |
 
 - **Rotation with reuse detection:** every refresh issues a new token and revokes the old one. If a revoked token is presented again, every token in that family is revoked (it was probably stolen). Two details make this work:
   - The token row is locked (`SELECT … FOR UPDATE`) during rotation, so two simultaneous refreshes can't both succeed.
@@ -220,8 +223,8 @@ Enforced with `@EnableMethodSecurity` and `@PreAuthorize` on controller methods,
 | List companies, activate/deactivate | ✓ | | | | |
 | Edit own company profile and logo | | ✓ | | | |
 | Manage company users (invite, disable) | | ✓ | | | |
-| Manage departments | | ✓ | | read own | |
-| Manage employees | | ✓ | | own profile, permitted fields | |
+| Manage departments | | ✓ | | own department via `GET /employees/me` | |
+| Manage employees | | ✓ | | own profile (`/employees/me`; phone only for now) | |
 | Create, edit, publish, close jobs | | ✓ | ✓ | | |
 | Browse published jobs | | ✓ | ✓ | | ✓ all companies |
 | Apply to a job | | | | | ✓ |
@@ -528,8 +531,15 @@ stateDiagram-v2
 ```
 
 - **Status codes:** `201` + `Location` on create, `202` for async AI jobs, `204` on delete, `400` for validation errors, `401` when unauthenticated, `403` for the wrong role, `404` when a record is missing or belongs to another tenant, `409` for duplicates and invalid transitions, `413` when a file is too large, `429` when a rate limit is hit.
-- **Endpoints changed from the original spec:** `POST /auth/register` is split into `/auth/register/candidate` and `/auth/register/company`, and `POST /candidates/register` is dropped as a duplicate.
-- **Endpoints added beyond the original spec:** `GET /ai/screenings/{id}`, `GET /applications/{id}/screenings`, `GET /applications/{id}/history`, `POST /interviews/{id}/questions`, `POST /users/invite`, `POST /auth/accept-invite`.
+- **Endpoints changed from the original spec:**
+  - `POST /auth/register` is split into `/auth/register/candidate` and `/auth/register/company`.
+  - `POST /candidates/register` and `POST /companies` are dropped; sign-up covers both.
+  - `DELETE /employees/{id}` is a soft delete: the employee becomes INACTIVE and their login is disabled.
+- **Endpoints added beyond the original spec:**
+  - Users and accounts: `GET /users`, `POST /users/invite`, `POST /users/{id}/resend-invite`, `PATCH /users/{id}/status`, `POST /auth/accept-invite`.
+  - Employees: `GET` and `PUT /employees/me`, `PATCH /employees/{id}/status`.
+  - AI and pipeline (planned): `GET /ai/screenings/{id}`, `GET /applications/{id}/screenings`, `GET /applications/{id}/history`, `POST /interviews/{id}/questions`.
+- **List endpoints:** `?q=` is a case-insensitive "contains" search, in which `%` and `_` match literally. `?sort=` accepts only the fields documented on each endpoint; anything else is a `400` that lists the allowed fields.
 
 ---
 
@@ -549,6 +559,8 @@ stateDiagram-v2
 | D10 | One role per user | Matches the spec; simpler checks | A user needs several roles |
 | D11 | Google Gemini API for both chat and embeddings, through Spring AI 1.1.x Google GenAI | One provider, one API key, no cloud project to set up; Spring AI 1.1.x is the line that supports Spring Boot 3.5 | Moving to Spring Boot 4 (Spring AI 2.x) |
 | D12 | `gemini-embedding-001` at 768 dimensions | Small vectors, can still use an HNSW index, little quality loss | Search quality is measurably poor |
+| D13 | Read queries may join another module's tables (§4) | Sorting and searching an employee list by name needs the `users` table; calling across modules per row would be slow and couldn't sort | A module moves to its own database |
+| D14 | Employees always have a login; HR adds them by invite | One identity per person; the employee's self-service profile needs it | Employees without system access are needed |
 
 ---
 

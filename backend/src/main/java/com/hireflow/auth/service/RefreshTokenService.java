@@ -1,15 +1,14 @@
 package com.hireflow.auth.service;
 
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.UUID;
 
 import com.hireflow.auth.entity.RefreshToken;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.repository.RefreshTokenRepository;
 import com.hireflow.common.util.Hashing;
+import com.hireflow.common.util.SecureTokens;
 import com.hireflow.security.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class RefreshTokenService {
-
-    private static final SecureRandom RANDOM = new SecureRandom();
-    private static final int TOKEN_BYTES = 32;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final AccountStatusService accountStatusService;
@@ -92,11 +88,14 @@ public class RefreshTokenService {
     private record IssuedToken(String raw, RefreshToken entity) {
     }
 
-    private IssuedToken issue(User user, UUID familyId) {
-        byte[] bytes = new byte[TOKEN_BYTES];
-        RANDOM.nextBytes(bytes);
-        String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    /** Password reset and admin deactivation: signs the user out of every device. */
+    @Transactional
+    public void revokeAllForUser(UUID userId) {
+        refreshTokenRepository.revokeAllForUser(userId, clock.instant());
+    }
 
+    private IssuedToken issue(User user, UUID familyId) {
+        String raw = SecureTokens.newToken();
         Instant expiresAt = clock.instant().plus(jwtProperties.refreshTtl());
         RefreshToken saved = refreshTokenRepository.save(
                 RefreshToken.create(user, Hashing.sha256Hex(raw), familyId, expiresAt));

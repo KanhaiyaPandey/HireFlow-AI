@@ -4,16 +4,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.UUID;
 
+import com.hireflow.auth.dto.AcceptInviteRequest;
 import com.hireflow.auth.dto.AuthResponse;
+import com.hireflow.auth.dto.ForgotPasswordRequest;
 import com.hireflow.auth.dto.LoginRequest;
 import com.hireflow.auth.dto.RegisterCandidateRequest;
 import com.hireflow.auth.dto.RegisterCompanyRequest;
+import com.hireflow.auth.dto.ResetPasswordRequest;
 import com.hireflow.auth.dto.UserResponse;
+import com.hireflow.auth.entity.TokenPurpose;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.mapper.UserMapper;
 import com.hireflow.auth.repository.UserRepository;
 import com.hireflow.candidate.service.CandidateService;
 import com.hireflow.common.exception.ConflictException;
+import com.hireflow.common.exception.InvalidRequestException;
 import com.hireflow.common.exception.NotFoundException;
 import com.hireflow.common.exception.UnauthorizedException;
 import com.hireflow.company.dto.CreateCompanyCommand;
@@ -52,6 +57,10 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final UserMapper userMapper;
     private final CurrentUser currentUser;
+    private final AccountTokenService accountTokenService;
+    private final AccountStatusService accountStatusService;
+    private final AccountEmailSender emailSender;
+    private final AccountLinks accountLinks;
 
     /** A response body plus the raw refresh token, which the controller puts in a cookie. */
     public record AuthResult(AuthResponse body, String refreshToken) {
@@ -124,6 +133,42 @@ public class AuthService {
         if (refreshToken != null && !refreshToken.isBlank()) {
             refreshTokenService.revokeFamily(refreshToken);
         }
+    }
+
+    /** Invited user sets their first password and is signed in. */
+    @Transactional
+    public AuthResult acceptInvite(AcceptInviteRequest request) {
+        User user = accountTokenService.consume(request.token(), TokenPurpose.INVITE);
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        if (!accountStatusService.canSignIn(user)) {
+            throw new InvalidRequestException(AccountTokenService.INVALID_LINK);
+        }
+        return startSession(user);
+    }
+
+    /**
+     * Always succeeds from the caller's point of view, whether or not the email has an account,
+     * so this endpoint cannot be used to discover registered emails.
+     */
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        userRepository.findByEmail(normaliseEmail(request.email()))
+                .filter(User::isEnabled)
+                .ifPresent(user -> {
+                    String token = accountTokenService.issue(user, TokenPurpose.RESET);
+                    emailSender.sendPasswordReset(user.getEmail(), user.getName(), accountLinks.resetPassword(token));
+                });
+    }
+
+    /** Sets a new password and signs the user out of every device. */
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = accountTokenService.consume(request.token(), TokenPurpose.RESET);
+        if (!user.isEnabled()) {
+            throw new InvalidRequestException(AccountTokenService.INVALID_LINK);
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        refreshTokenService.revokeAllForUser(user.getId());
     }
 
     @Transactional(readOnly = true)

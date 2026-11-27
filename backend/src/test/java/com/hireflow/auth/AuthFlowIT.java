@@ -11,42 +11,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.Map;
 import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hireflow.TestcontainersConfig;
+import com.hireflow.support.IntegrationTest;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 /** End-to-end authentication against a real database: sign-up, login, refresh rotation, logout, lockout. */
-@SpringBootTest(properties = {
-        "hireflow.super-admin.email=Root@HireFlow.test",
-        "hireflow.super-admin.password=RootPassw0rd",
-})
-@AutoConfigureMockMvc
-@Import(TestcontainersConfig.class)
-class AuthFlowIT {
+class AuthFlowIT extends IntegrationTest {
 
     private static final String PASSWORD = "Passw0rd123";
     private static final String AUTH = "/api/v1/auth";
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private JdbcTemplate jdbc;
 
     // ---------------------------------------------------------------- sign-up
 
@@ -293,14 +272,6 @@ class AuthFlowIT {
 
     private static String bearer(MvcResult result) throws Exception {
         return "Bearer " + JsonPath.read(body(result), "$.accessToken");
-    }
-
-    private static String body(MvcResult result) throws Exception {
-        return result.getResponse().getContentAsString();
-    }
-
-    private String json(Object value) throws Exception {
-        return objectMapper.writeValueAsString(value);
     }
 
     private static String uniqueEmail() {
