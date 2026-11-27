@@ -9,7 +9,8 @@ export function formatDate(value: string | null | undefined): string {
 /** "2 hours ago", "yesterday"; falls back to a date after a week. */
 export function formatRelative(value: string | null | undefined, now: Date = new Date()): string {
   if (!value) return '—'
-  const seconds = Math.round((new Date(value).getTime() - now.getTime()) / 1000)
+  // Server and device clocks drift: treat anything in the future as just now.
+  const seconds = Math.min(0, Math.round((new Date(value).getTime() - now.getTime()) / 1000))
   const abs = Math.abs(seconds)
   if (abs < 60) return 'just now'
   if (abs < 3600) return relativeFormatter.format(Math.round(seconds / 60), 'minute')

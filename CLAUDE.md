@@ -8,14 +8,15 @@ HireFlow AI is a multi-tenant HRMS and applicant tracking system (ATS) with AI f
 
 It is a portfolio project for a Java Full Stack role. The author must be able to explain every line in a technical interview, so prefer clear, conventional Spring code over clever abstractions, and keep the scope to what the 18-day plan needs.
 
-**Status:** Days 1–7 are done.
+**Status:** Days 1–8 are done.
 - **Days 1–2:** backend skeleton, Problem Details error handling, `PageResponse`, and the full V1 Flyway schema.
 - **Day 3, authentication:** candidate and company sign-up, login, JWT access tokens, rotating refresh-token cookie with reuse detection, logout, `/auth/me`, and the super admin seeder.
 - **Day 4, HR core:** company profiles and activation; departments with managers; employee records, which always come with an invited login; HR user management (invite, resend, enable/disable); password reset.
 - **Day 5, recruitment:** job lifecycle and the public job board; candidate profiles and the company's applicant directory; applying, the status pipeline with history, and recruiter notes.
 - **Day 6, files:** the `FileStorage` abstraction (local disk and Cloudinary, both verified against the real account); resume upload with PDFBox text extraction; signed downloads; recruiter-sourced applications; company logos and employee photos.
 - **Day 7, frontend foundation:** design tokens and shell, the shared components, all auth pages wired to the API (session restore, refresh, role routing), and a real home page per role.
-- **Next, Day 8:** the HR dashboard with `/dashboard/*` analytics endpoints.
+- **Day 8, dashboard:** `/dashboard/overview`, `/recruitment-analytics` and `/employee-analytics` (plain SQL, tenant-scoped, time-zone-aware days); the staff Overview page with KPI cards, a trend chart, the pipeline, top jobs, recent activity, and team charts for HR admins.
+- **Next, Day 9:** employee and department management pages.
 - **Not started:** rate limiting and real email delivery (invite and reset links are logged for now). The logo file is pending from the owner (`frontend/public/logo.svg`).
 - **Media:** stored in Cloudinary. Images are public; resumes are `authenticated` and served only through signed URLs (docs/architecture.md §10).
 
@@ -32,7 +33,7 @@ Design docs — read the relevant one before changing that area:
 - **Backend:** Java 21, Spring Boot 3.5.x, Spring Security, Spring Data JPA (Hibernate 6), Flyway, Spring AI 1.1.x, Apache PDFBox, MapStruct, Lombok, JJWT, SpringDoc OpenAPI, Maven
 - **AI:** Google Gemini API through Spring AI's Google GenAI starters (`spring-ai-starter-model-google-genai`, `spring-ai-starter-model-google-genai-embedding`). Chat model is configurable; embeddings use `gemini-embedding-001` at **768 dimensions**. Stay on Spring AI 1.1.x: 2.x targets Spring Boot 4.
 - **Database:** PostgreSQL 17 with the pgvector extension
-- **Frontend:** React 19, TypeScript 7 (`strict`), Vite 8, Tailwind CSS 4, shadcn/ui on Radix, React Router 7, TanStack Query 5, React Hook Form + Zod 4, Axios, Lucide, Inter, Vitest + Testing Library, oxlint. Recharts is added on Day 8. Stay on React Router 7, because 8 needs Node ≥ 22.22 and the local Node is 22.12
+- **Frontend:** React 19, TypeScript 7 (`strict`), Vite 8, Tailwind CSS 4, shadcn/ui on Radix, React Router 7, TanStack Query 5, React Hook Form + Zod 4, Axios, Lucide, Inter, Vitest + Testing Library, oxlint. Recharts 3 (charts: follow DESIGN.md → Charts). Stay on React Router 7, because 8 needs Node ≥ 22.22 and the local Node is 22.12
 - **Tests:** JUnit 5, Mockito, MockMvc, Spring Boot Test, Testcontainers
 
 The local JDK is 23; the build targets Java 21 with `<maven.compiler.release>21</maven.compiler.release>`. Do not use language or API features newer than Java 21.

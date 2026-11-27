@@ -90,7 +90,7 @@ All modules live under `com.hireflow`.
 | `application` | `applications`, `application_status_history`, `application_notes` | `recruitment`, `candidate` | Applying, pipeline stages, notes, status history |
 | `interview` | `interviews`, `interview_questions` | `application`, `auth` | Scheduling, feedback, saved questions |
 | `ai` | `ai_screenings`, `resume_embeddings` | `candidate`, `recruitment`, `application` | Extraction, scoring, embeddings, semantic search, question generation |
-| `dashboard` | — (read-only) | query services of other modules | KPI and analytics endpoints |
+| `dashboard` | — (read-only) | none (SQL over other modules' tables) | Headline counts, recent activity, recruitment and employee analytics (`DashboardRepository`: plain SQL via `NamedParameterJdbcTemplate`, every query scoped by `company_id`) |
 | `notification` | `notifications` | events | In-app notifications |
 | `audit` | `audit_logs` | events | Who did what, when |
 | `storage` | — | — | `FileStorage` interface + local and Cloudinary implementations |
@@ -574,6 +574,11 @@ stateDiagram-v2
     - Candidates: `GET /applications/mine`, and `GET` and `PUT /candidates/me`.
     - Staff: `GET /applications/{id}/history`, and `GET /applications/{id}/notes` as well as `POST`.
   - `GET /jobs` lists only your own company's jobs. `GET /candidates` lists only candidates who applied to your company.
+  - Dashboard (Day 8):
+    - `GET /dashboard/overview` (HR admin, recruiter; employee counts are `null` for recruiters).
+    - `GET /dashboard/recruitment-analytics?days=1..180&zone=<IANA>`: applications received in the window, per day (zero-filled), by current status, by source, and the top five jobs. Every part uses the same window.
+    - `GET /dashboard/employee-analytics?zone=` (HR admin): totals, active employees by department (plus "Unassigned"), and joiners per month for the last 12 months.
+    - Days and months are calendar days in the viewer's time zone (`zone`), so an application at 23:30 in Bengaluru counts on that Bengaluru day.
   - Files (Day 6):
     - Resumes: `POST`, `GET` and `DELETE /candidates/me/resumes`, and `GET /resumes/{id}/download`.
     - Recruiter sourcing: `POST /jobs/{id}/sourced-applications`, multipart with name, email, phone and file.
@@ -601,6 +606,7 @@ stateDiagram-v2
 | D12 | `gemini-embedding-001` at 768 dimensions | Small vectors, can still use an HNSW index, little quality loss | Search quality is measurably poor |
 | D13 | Read queries may join another module's tables (§4) | Sorting and searching an employee list by name needs the `users` table; calling across modules per row would be slow and couldn't sort | A module moves to its own database |
 | D14 | Employees always have a login; HR adds them by invite | One identity per person; the employee's self-service profile needs it | Employees without system access are needed |
+| D16 | Dashboard aggregations are plain SQL (`NamedParameterJdbcTemplate`), not JPA | Grouping by day or month, `FILTER`, `AT TIME ZONE` and zero-filling are SQL's job; the queries stay readable and are each scoped by `company_id` | Data volume needs pre-aggregated tables |
 | D15 | Cloudinary for all media: public images, private (`authenticated`) resumes behind signed URLs | One service for images and documents, a free tier, built-in image resizing for logos and avatars; no AWS IAM setup | Storage costs or compliance needs outgrow it |
 
 ---

@@ -4,12 +4,12 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 
 import { FormAlert } from '@/components/FormAlert'
+import { SegmentedControl } from '@/components/SegmentedControl'
 import { FormField } from '@/components/FormField'
 import { PasswordInput } from '@/components/PasswordInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { applyFieldErrors, errorMessage } from '@/lib/problem'
-import { cn } from '@/lib/utils'
 
 import { useRegisterCandidate, useRegisterCompany } from '../api'
 import { AuthLayout } from '../components/AuthLayout'
@@ -50,39 +50,18 @@ export default function RegisterPage() {
         </>
       }
     >
-      <AccountTypePicker value={type} onChange={(next) => setParams({ type: next }, { replace: true })} />
+      <SegmentedControl
+        label="Account type"
+        fullWidth
+        value={type}
+        onChange={(next) => setParams({ type: next }, { replace: true })}
+        options={[
+          { value: 'company', label: "I'm hiring", icon: Briefcase },
+          { value: 'candidate', label: "I'm looking for a job", icon: UserRound },
+        ]}
+      />
       <div className="mt-6">{type === 'company' ? <CompanyForm /> : <CandidateForm />}</div>
     </AuthLayout>
-  )
-}
-
-function AccountTypePicker({ value, onChange }: { value: AccountType; onChange: (value: AccountType) => void }) {
-  const options = [
-    { value: 'company' as const, label: "I'm hiring", icon: Briefcase },
-    { value: 'candidate' as const, label: "I'm looking for a job", icon: UserRound },
-  ]
-  return (
-    <div role="radiogroup" aria-label="Account type" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-      {options.map((option) => {
-        const selected = option.value === value
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              'flex h-9 items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors duration-150',
-              selected ? 'bg-card text-foreground shadow-[0_1px_2px_rgb(15_23_42/0.08)] ring-1 ring-border' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <option.icon className={cn('size-4', selected ? 'text-primary' : 'text-subtle')} aria-hidden="true" />
-            {option.label}
-          </button>
-        )
-      })}
-    </div>
   )
 }
 

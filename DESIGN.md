@@ -171,6 +171,25 @@ Keep those changes when re-running `shadcn add --overwrite`.
 | `ConfirmDialog` | Only for destructive or hard-to-undo actions, with a named confirm label and a pending state |
 | `EmptyState`, `ErrorState`, `LoadingSkeleton`, `FullPageLoader`, `FullPageError` | Every data view's non-happy states |
 | `BrandLogo` | The logo slot: put the owner's file at `public/logo.svg`; until then a plain "HF" monogram holds the place |
+| `SegmentedControl` | One choice from a few options: date ranges, chart/table view, account type. A radio group with arrow-key navigation |
+| `ChartCard` | Frame for every chart: title, a description that states the headline in words, a Chart/Table switch, and skeleton, empty, error and refreshing (dimmed, no flash) states. The plot fills a stretched card |
+| `charts/Charts.tsx` | `AreaTrend` (change over time), `HorizontalBars` (a few named categories), `ColumnBars` (counts per period). All single-series, all with the value-first tooltip |
+
+### Charts (Day 8, following the dataviz method)
+
+- **One series per chart, one hue.** Magnitude uses brand indigo (`#4338CA`, validated on white: lightness band, chroma, ≥3:1 contrast); axis labels carry identity, so no legend box is needed. Violet is only for AI-derived charts. Status colours are never used as series colours.
+- **Colours** come from `CHART_COLORS` in `src/lib/chart.ts`. SVG attributes can't reliably read CSS variables, so that file is the only place besides `index.css` that holds hex values.
+- **Marks:**
+  - Lines are 2px and straight (`linear`): a curve would invent values between whole-number days.
+  - The area wash is 10% opacity.
+  - Bars are at most 22px thick, with a 4px rounded data-end and a square baseline.
+  - Gridlines are solid 1px `--border`, and horizontal only for vertical-value charts.
+  - Markers appear only on hover: 8px, with a 2px white ring.
+- **Text** uses text tokens, never the series colour. Bars show their value at the tip; lines and columns rely on axes and the tooltip.
+- **Tooltip:** the value first (strong), the label second.
+- **Table view:** every chart has one, and empty data shows a message, not a flat chart.
+- **Date range:** one `SegmentedControl` in a row above the section it scopes, never inside a chart card. Everything below it uses the same window, and data refetches keep the previous render dimmed rather than flashing a skeleton.
+- **Big numbers** (stat cards) use proportional digits; `tabular-nums` is only for columns and tables.
 
 ### Patterns
 

@@ -1,38 +1,34 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
-import type { Application } from '@/features/recruitment/types'
 import { api } from '@/lib/api'
-import type { Page } from '@/lib/types'
+import { viewerTimeZone } from '@/lib/chart'
 
-/**
- * Overview numbers, read from the list endpoints' totalElements with size=1, so no dedicated
- * statistics endpoint is needed yet. Day 8 adds /dashboard/* endpoints for richer analytics.
- */
-function useCount(key: string, path: string, params: Record<string, string>, enabled = true) {
+import type { DashboardOverview, EmployeeAnalytics, RangeDays, RecruitmentAnalytics } from './types'
+
+export function useDashboardOverview() {
   return useQuery({
-    queryKey: ['overview', 'count', key],
-    queryFn: () => api.get<Page<unknown>>(path, { params: { ...params, size: 1 } }).then((r) => r.data.totalElements),
-    enabled,
+    queryKey: ['dashboard', 'overview'],
+    queryFn: () => api.get<DashboardOverview>('/dashboard/overview').then((r) => r.data),
   })
 }
 
-export function useOverviewCounts(isHrAdmin: boolean) {
-  return {
-    openJobs: useCount('open-jobs', '/jobs', { status: 'PUBLISHED' }),
-    applications: useCount('applications', '/applications', {}),
-    shortlisted: useCount('shortlisted', '/applications', { status: 'SHORTLISTED' }),
-    // Only HR admins may list employees; recruiters see their applicant pool instead.
-    employees: useCount('employees', '/employees', { status: 'ACTIVE' }, isHrAdmin),
-    candidates: useCount('candidates', '/candidates', {}, !isHrAdmin),
-  }
+/** Keeps the previous range on screen while a new one loads (no skeleton flash). */
+export function useRecruitmentAnalytics(days: RangeDays) {
+  const zone = viewerTimeZone()
+  return useQuery({
+    queryKey: ['dashboard', 'recruitment', days, zone],
+    queryFn: () =>
+      api.get<RecruitmentAnalytics>('/dashboard/recruitment-analytics', { params: { days, zone } }).then((r) => r.data),
+    placeholderData: keepPreviousData,
+  })
 }
 
-export function useRecentApplications() {
+/** HR admins only; recruiters never call it (the API would answer 403). */
+export function useEmployeeAnalytics(enabled: boolean) {
+  const zone = viewerTimeZone()
   return useQuery({
-    queryKey: ['overview', 'recent-applications'],
-    queryFn: () =>
-      api
-        .get<Page<Application>>('/applications', { params: { size: 6, sort: 'appliedAt,desc' } })
-        .then((r) => r.data),
+    queryKey: ['dashboard', 'employees', zone],
+    queryFn: () => api.get<EmployeeAnalytics>('/dashboard/employee-analytics', { params: { zone } }).then((r) => r.data),
+    enabled,
   })
 }

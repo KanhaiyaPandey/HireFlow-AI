@@ -22,7 +22,10 @@ interface StatCardProps {
   accent?: 'brand' | 'ai'
 }
 
-/** One headline number from real API data. Never fed illustrative values. */
+/**
+ * One headline number from real API data. Never fed illustrative values. The big value uses Inter's
+ * proportional digits: tabular-nums would space a lone "121" loosely (dataviz guidance).
+ */
 export function StatCard({ label, value, icon: Icon, hint, loading, error, to, accent = 'brand' }: StatCardProps) {
   const body = (
     <>
@@ -41,7 +44,7 @@ export function StatCard({ label, value, icon: Icon, hint, loading, error, to, a
         {loading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
-          <p className="text-2xl leading-8 font-semibold sm:text-[28px] tracking-[-0.02em] text-foreground tabular-nums">
+          <p className="text-2xl leading-8 font-semibold sm:text-[28px] tracking-[-0.02em] text-foreground">
             {error || value === undefined ? <span className="text-base font-medium text-muted-foreground">Unavailable</span> : formatNumber(value)}
           </p>
         )}
