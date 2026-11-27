@@ -9,6 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.hireflow.config.CorsProperties;
 import com.hireflow.config.SecurityConfig;
+import com.hireflow.config.TimeConfig;
+import com.hireflow.security.JwtProperties;
+import com.hireflow.security.JwtService;
+import com.hireflow.security.ProblemDetailsSecurityHandlers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
@@ -18,6 +22,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,14 +33,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Checks the Problem Details format (docs/architecture.md §11) and the baseline security rules. */
 @WebMvcTest(controllers = GlobalExceptionHandlerTest.ProbeController.class)
-@Import({SecurityConfig.class, GlobalExceptionHandlerTest.ProbeController.class})
-@EnableConfigurationProperties(CorsProperties.class)
+@Import({SecurityConfig.class, JwtService.class, ProblemDetailsSecurityHandlers.class, TimeConfig.class,
+        GlobalExceptionHandlerTest.ProbeController.class})
+@EnableConfigurationProperties({CorsProperties.class, JwtProperties.class})
 class GlobalExceptionHandlerTest {
 
     private static final MediaType PROBLEM_JSON = MediaType.APPLICATION_PROBLEM_JSON;
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** Login is not exercised here; SecurityConfig just needs the bean to exist. */
+    @MockitoBean
+    private UserDetailsService userDetailsService;
 
     @Test
     void notFoundBecomesProblemDetail404() throws Exception {
@@ -98,8 +109,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void unauthenticatedRequestIs401() throws Exception {
+    void unauthenticatedRequestIs401ProblemDetail() throws Exception {
         mockMvc.perform(get("/api/probe/hr-only"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("/problems/unauthorized"));
+    }
+
+    @Test
+    void garbageBearerTokenIs401() throws Exception {
+        mockMvc.perform(get("/api/probe/hr-only").header("Authorization", "Bearer not-a-jwt"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -136,6 +155,7 @@ class GlobalExceptionHandlerTest {
 
         @PostMapping("/validate")
         void validate(@Valid @RequestBody ProbeRequest request) {
+            // Intentionally empty: the test only cares whether @Valid rejects the body before this runs.
         }
 
         @GetMapping("/hr-only")

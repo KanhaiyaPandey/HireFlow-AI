@@ -65,3 +65,16 @@ springdoc:
 hireflow:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  jwt:
+    # The default is a PUBLIC placeholder for local development only. application-prod.yml has no default.
+    secret: ${JWT_SECRET:bG9jYWwtZGV2LW9ubHktaW5zZWN1cmUtand0LXNlY3JldC1kby1ub3QtdXNlLWluLXByb2Q=}
+    access-ttl: ${JWT_ACCESS_TTL:PT15M}
+    refresh-ttl: ${JWT_REFRESH_TTL:P7D}
+    issuer: hireflow
+  refresh-cookie:
+    secure: ${COOKIE_SECURE:true}
+    same-site: ${COOKIE_SAME_SITE:Lax}
+  super-admin:
+    name: ${SUPER_ADMIN_NAME:Platform Admin}
+    email: ${SUPER_ADMIN_EMAIL:}
+    password: ${SUPER_ADMIN_PASSWORD:}

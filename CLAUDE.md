@@ -8,7 +8,11 @@ HireFlow AI is a multi-tenant HRMS and applicant tracking system (ATS) with AI f
 
 It is a portfolio project for a Java Full Stack role. The author must be able to explain every line in a technical interview, so prefer clear, conventional Spring code over clever abstractions, and keep the scope to what the 18-day plan needs.
 
-**Status:** Day 1–2 foundation is done: the backend skeleton, security baseline, Problem Details error handling, `PageResponse`, and the full V1 Flyway schema, with unit and integration tests passing. JPA entities are added with each module (Day 3 onward: `auth` first). The frontend is not scaffolded yet (Day 7).
+**Status:** Days 1–3 are done.
+- **Days 1–2:** backend skeleton, Problem Details error handling, `PageResponse`, and the full V1 Flyway schema.
+- **Day 3, authentication:** candidate and company sign-up, login, JWT access tokens, rotating refresh-token cookie with reuse detection, logout, `/auth/me`, and the super admin seeder.
+- **Entities so far:** `Company` and `Candidate` exist only as minimal entities for sign-up. Their modules are filled in on Days 4–5; the other entities arrive with their modules.
+- **Not started:** password reset and invites (planned with user management on Day 4), rate limiting, and the frontend (Day 7).
 
 Design docs — read the relevant one before changing that area:
 
@@ -64,6 +68,9 @@ cd frontend && npm run lint && npm run typecheck && npm test
 - Modules call each other only through another module's service methods — never its repositories or entities. When two modules need each other, split read-only lookups into a `*QueryService` with no dependency back, so there is no bean cycle.
 - Cross-module side effects (audit log, notifications) use Spring application events handled with `@TransactionalEventListener(phase = AFTER_COMMIT)`.
 - DTOs are Java records. Entities never leave the service layer. Map with MapStruct.
+- Across modules, entities hold another module's id as a plain `UUID` field, never a `@ManyToOne`. Within a module, JPA relationships are fine.
+- Who is calling, and which company they act for, comes only from `CurrentUser` (`id()`, `role()`, `requireCompanyId()`).
+- Inject `java.time.Clock` instead of calling `Instant.now()`, so tests can fix the time.
 - Entities use `@Getter`/`@Setter` only — no `@Data`, no Lombok `equals`/`hashCode`/`toString` on entities. UUID primary keys. Timestamps are `Instant` mapped to `timestamptz`.
 - Constructor injection only (`@RequiredArgsConstructor` on `final` fields). No field `@Autowired`.
 - Errors: throw `NotFoundException`, `ConflictException`, `BusinessRuleException` or similar from `common.exception`; `GlobalExceptionHandler` turns them into RFC 9457 `ProblemDetail` responses. No ad-hoc error maps.

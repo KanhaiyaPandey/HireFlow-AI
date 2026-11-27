@@ -137,9 +137,10 @@ hireflow:
 | `JWT_SECRET` | ✓ | output of `openssl rand -base64 32` | At least 256 bits. Changing it logs everyone out |
 | `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` | | `PT15M`, `P7D` | ISO-8601 durations |
 | `CORS_ALLOWED_ORIGINS` | ✓ | `https://app.<your-domain>` | Comma-separated; no wildcards |
-| `COOKIE_SECURE` | | `true` | `false` only on plain-HTTP localhost |
+| `COOKIE_SECURE` | | `true` | Default `true`. Browsers treat `http://localhost` as secure, so it works locally too. Forced to `true` in production |
+| `COOKIE_SAME_SITE` | | `Lax` | `Lax` works for both setups in §7. Avoid `None` |
 | `FRONTEND_BASE_URL` | ✓ | `https://app.<your-domain>` | Used in invite and reset links |
-| `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | ✓ first boot | | Used once by the seed step; rotate the password after the first login |
+| `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, `SUPER_ADMIN_NAME` | ✓ first boot | | Read by `SuperAdminSeeder` only while no super admin exists. The password must meet the policy (8+ characters, a letter and a digit). Rotate it after the first login |
 | `GEMINI_API_KEY` | ✓ | | From Google AI Studio. Used for both chat and embeddings. Enable billing on its project before real resumes are processed ([architecture.md §8.8](architecture.md#88-cost-and-safety-controls)) |
 | `GEMINI_CHAT_MODEL` | ✓ | current stable Gemini Flash model ID | Take the ID from Google's Gemini API model list. Changing it needs no code change |
 | `GEMINI_EMBEDDING_MODEL` | | `gemini-embedding-001` | Changing it needs a new migration and a full re-index |

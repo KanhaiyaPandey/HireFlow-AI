@@ -81,12 +81,12 @@ All modules live under `com.hireflow`.
 
 | Module | Owns (tables) | Depends on | Responsibility |
 |---|---|---|---|
-| `auth` | `users`, `refresh_tokens`, `password_reset_tokens` | `common` | Registration, login, JWT, refresh rotation, password reset, invites |
-| `company` | `companies` | `auth` | Company profile, logo, activate/deactivate (super admin) |
+| `auth` | `users`, `refresh_tokens`, `password_reset_tokens` | `company`, `candidate` | Registration (orchestrates company and candidate sign-up), login, refresh rotation, password reset, invites, company user management |
+| `company` | `companies` | — | Company profile, logo, activate/deactivate (super admin) |
 | `department` | `departments` | `employee` (query only) | Departments, manager assignment |
 | `employee` | `employees` | `department` (query only), `auth` | Employee records, onboarding info, self-service profile |
 | `recruitment` | `jobs` | `company` | Job openings: draft, publish, close |
-| `candidate` | `candidates`, `resumes` | `auth`, `storage` | Candidate profiles, resume upload, PDF text extraction |
+| `candidate` | `candidates`, `resumes` | `storage` | Candidate profiles, resume upload, PDF text extraction |
 | `application` | `applications`, `application_status_history`, `application_notes` | `recruitment`, `candidate` | Applying, pipeline stages, notes, status history |
 | `interview` | `interviews`, `interview_questions` | `application`, `auth` | Scheduling, feedback, saved questions |
 | `ai` | `ai_screenings`, `resume_embeddings` | `candidate`, `recruitment`, `application` | Extraction, scoring, embeddings, semantic search, question generation |
@@ -118,6 +118,8 @@ Rules:
 - Controllers never touch repositories or entities.
 - Entities never leave their module's service layer. Other modules receive DTOs.
 - A module never injects another module's repository. It calls that module's service.
+- **Across modules, entities reference each other by id**, as a plain `UUID` field (for example `User.companyId`, `Candidate.userId`), never with `@ManyToOne`. The database foreign key still guarantees the id is valid. Inside one module, real JPA relationships are fine (for example `RefreshToken.user`).
+- Dependencies point one way. `auth` depends on `company` and `candidate` because sign-up creates their records; neither of them depends on `auth`.
 - Cross-module side effects go through events. Example: `ApplicationStatusChangedEvent` is published by `application`, then `audit` writes a log row and `notification` notifies the candidate. Listeners use `@TransactionalEventListener(phase = AFTER_COMMIT)`, so nothing is logged or sent for a rolled-back change.
 
 Package layout inside a module:
@@ -191,11 +193,14 @@ sequenceDiagram
 | Refresh | 256-bit random opaque string | 7 days | httpOnly cookie, scoped to `/api/v1/auth`; DB holds only its SHA-256 hash |
 | Password reset / invite | 256-bit random opaque string | 30 min, single use | DB holds only its hash |
 
-- **Rotation with reuse detection:** every refresh issues a new token and revokes the old one. If a revoked token is presented again, every token in that family is revoked (it was probably stolen).
+- **Rotation with reuse detection:** every refresh issues a new token and revokes the old one. If a revoked token is presented again, every token in that family is revoked (it was probably stolen). Two details make this work:
+  - The token row is locked (`SELECT … FOR UPDATE`) during rotation, so two simultaneous refreshes can't both succeed.
+  - The rotation transaction uses `noRollbackFor = InvalidRefreshTokenException`. Otherwise the exception thrown after revoking the family would roll the revocation back. `AuthFlowIT` covers this.
+- **The frontend must send one refresh at a time.** If two browser tabs refresh with the same cookie at the same moment, the second request looks like reuse and logs the user out. The Axios interceptor shares a single in-flight refresh promise.
 - **Disabled users and companies** are checked at login and at refresh, so a deactivation takes effect within one access-token lifetime (15 min).
 - **Passwords:** BCrypt, Spring's default strength.
 - **Forgot password** always returns the same response whether or not the email exists.
-- **CSRF:** API calls use a bearer header, so CSRF protection is off for them. The only cookie-authenticated endpoints, `/auth/refresh` and `/auth/logout`, are protected by `SameSite` and an `Origin` check.
+- **CSRF:** API calls use a bearer header, so CSRF protection is off for them. The only cookie-authenticated endpoints, `/auth/refresh` and `/auth/logout`, are protected by `SameSite=Lax` and by CORS: Spring rejects with 403 any cross-origin request whose `Origin` isn't in `hireflow.cors.allowed-origins`.
 
 ### 6.2 Registration and onboarding
 
@@ -204,7 +209,7 @@ sequenceDiagram
 - a **CANDIDATE** account, or
 - a **new company plus its first HR_ADMIN** (company starts `ACTIVE`).
 
-It never accepts a role from the client. `SUPER_ADMIN` is created by a seed migration with a password set through the environment. Recruiters and employees are **invited** by an HR admin: the backend creates the user with no password and issues a set-password token. The link is emailed in production and logged in development.
+These are two endpoints, `POST /auth/register/candidate` and `POST /auth/register/company`. Both sign the new user in immediately. Neither accepts a role from the client; a `role` field in the body is ignored. `SUPER_ADMIN` is created at startup by `SuperAdminSeeder` from `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD`, only if no super admin exists yet. The seeder hashes the password with the same BCrypt encoder as every other password, so it never appears in a migration. Recruiters and employees are **invited** by an HR admin: the backend creates the user with no password and issues a set-password token. The link is emailed in production and logged in development.
 
 ### 6.3 Authorization (RBAC)
 
@@ -523,6 +528,7 @@ stateDiagram-v2
 ```
 
 - **Status codes:** `201` + `Location` on create, `202` for async AI jobs, `204` on delete, `400` for validation errors, `401` when unauthenticated, `403` for the wrong role, `404` when a record is missing or belongs to another tenant, `409` for duplicates and invalid transitions, `413` when a file is too large, `429` when a rate limit is hit.
+- **Endpoints changed from the original spec:** `POST /auth/register` is split into `/auth/register/candidate` and `/auth/register/company`, and `POST /candidates/register` is dropped as a duplicate.
 - **Endpoints added beyond the original spec:** `GET /ai/screenings/{id}`, `GET /applications/{id}/screenings`, `GET /applications/{id}/history`, `POST /interviews/{id}/questions`, `POST /users/invite`, `POST /auth/accept-invite`.
 
 ---

@@ -18,3 +18,7 @@ logging:
 hireflow:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  jwt:
+    secret: ${JWT_SECRET}
+  refresh-cookie:
+    secure: true
